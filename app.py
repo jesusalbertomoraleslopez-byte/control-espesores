@@ -26,16 +26,16 @@ ESTANDAR = {
     "Decapado": {12: 0.105, 14: 0.075, 16: 0.060}
 }
 TOLERANCIA_INTERNA = 0.008
-def calcular_riesgo_grupos(df, tol_proveedor):
+def calcular_riesgo_grupos(df_entrada, tol_proveedor):
     """Calcula el área bajo la curva normal para hallar el porcentaje exacto de riesgo de rechazo."""
     sigma_p = tol_proveedor / 3.0
     resumen = []
-    for (m, c), sub in df.groupby(['Material', 'Calibre']):
+    # Agrupamos sobre una copia profunda para evitar efectos colaterales en el dataframe principal
+    for (m, c), sub in df_entrada.groupby(['Material', 'Calibre']):
         cal_i = int(c.replace("CAL ", ""))
         nom = ESTANDAR[m][cal_i]
         med = float(sub['Espesor Real (in)'].mean())
         
-        # Integración de colas gaussianas fuera del estándar crítico de ±0.008"
         p_inf = stats.norm.cdf(nom - TOLERANCIA_INTERNA, loc=med, scale=sigma_p)
         p_sup = 1.0 - stats.norm.cdf(nom + TOLERANCIA_INTERNA, loc=med, scale=sigma_p)
         r_pct = (p_inf + p_sup) * 100
@@ -44,8 +44,8 @@ def calcular_riesgo_grupos(df, tol_proveedor):
         resumen.append({"Clave": f"{m} {c}", "Media": med, "Riesgo": r_pct, "Dictamen": dictam, "Nominal": nom})
     return resumen
 
-def colorear_celda(v):
-    """Reglas de formateo condicional para visualización de celdas en la interfaz web de Streamlit."""
+def colorear_matriz_resumen(v):
+    """Aplica formato semafórico basado en las cadenas de texto de riesgo."""
     if not isinstance(v, str): return ''
     if "BAJO" in v: return 'background-color: #C6EFCE; color: #006100; font-weight: bold;'
     if "MODERADO" in v: return 'background-color: #FFF2CC; color: #7F6000; font-weight: bold;'
@@ -61,8 +61,9 @@ def generar_excel_plantilla():
         "Unidad": ["Pulgadas", "Milimetros", "Milimetros"]
     }
     output = io.BytesIO()
+    df_tpl = pd.DataFrame(datos)
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        pd.DataFrame(datos).to_excel(writer, index=False)
+        df_tpl.to_excel(writer, index=False)
     return output.getvalue()
 def crear_pdf_formal(df_final, resumen, tol_p):
     """Genera la estructura del documento técnico formal usando un buffer en memoria."""
@@ -92,7 +93,7 @@ def crear_pdf_formal(df_final, resumen, tol_p):
     t_req_d = [[Paragraph("Material / Calibre", h_style), Paragraph("Espesor Requerido<br/>(Nominal)", h_style), Paragraph("Límite Mínimo<br/>(-0.008\")", h_style), Paragraph("Límite Máximo<br/>(+0.008\")", h_style)]]
     for r in resumen:
         t_req_d.append([Paragraph(r['Clave'], c_bold), Paragraph(f"{r['Nominal']:.3f}\"", c_style), Paragraph(f"{r['Nominal']-TOLERANCIA_INTERNA:.3f}\"", c_style), Paragraph(f"{r['Nominal']+TOLERANCIA_INTERNA:.3f}\"", c_style)])
-    t_1 = Table(t_req_d, colWidths=[140, 120, 130, 130])
+    t_1 = Table(t_req_d, colWidths=[130, 110, 110, 110])
     t_1.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#708090')), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#A0A0A0')), ('PADDING', (0,0), (-1,-1), 5)]))
     story.append(t_1)
     
@@ -104,29 +105,24 @@ def crear_pdf_formal(df_final, resumen, tol_p):
         p_d, bg = (Paragraph(r['Dictamen'], s_bajo), colors.HexColor('#C6EFCE')) if "BAJO" in r['Dictamen'] else ((Paragraph(r['Dictamen'], s_mod), colors.HexColor('#FFF2CC')) if "MODERADO" in r['Dictamen'] else (Paragraph(r['Dictamen'], s_alto), colors.HexColor('#FFC7CE')))
         t_riesgo_d.append([Paragraph(r['Clave'], c_bold), Paragraph(f"{r['Media']:.4f}\"", c_style), Paragraph(f"{r['Riesgo']:.2f}%", c_style), p_d])
         est_riesgo.append(('BACKGROUND', (3, idx+1), (3, idx+1), bg))
-    t_2 = Table(t_riesgo_d, colWidths=[150, 110, 120, 140])
+    t_2 = Table(t_riesgo_d, colWidths=[130, 110, 110, 110])
     t_2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2b579a')), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#A0A0A0')), ('PADDING', (0,0), (-1,-1), 5)] + est_riesgo))
     story.append(t_2)
     
     # Tabla Sección 3: Muestreo Físico por Unidades
     story.append(Paragraph("3. Desglose Analítico por Unidad (Muestreo Físico)", h2_st))
-    t_rollos_d = [[Paragraph("Rollo", h_style), Paragraph("Material", h_style), Paragraph("Calibre", h_style), Paragraph("Espesor (in)", h_style), Paragraph("Desviación vs Est.", h_style), Paragraph("Dictamen Proceso", h_style)]]
+    t_rollos_d = [[Paragraph("Rollo", h_style), Paragraph("Material", h_style), Paragraph("Calibre", h_style), Paragraph("Espesor (in)", h_style), Paragraph("Desviación vs Est.", h_style), Paragraph("Estatus Planta", h_style)]]
     est_rollos = []
     for idx, f in df_final.reset_index(drop=True).iterrows():
         p_e, bg = (Paragraph(f['Estatus Planta'], s_bajo), colors.HexColor('#C6EFCE')) if "BAJO" in f['Estatus Planta'] else ((Paragraph(f['Estatus Planta'], s_mod), colors.HexColor('#FFF2CC')) if "MODERADO" in f['Estatus Planta'] else (Paragraph(f['Estatus Planta'], s_alto), colors.HexColor('#FFC7CE')))
         t_rollos_d.append([Paragraph(str(f['Rollo']), c_style), Paragraph(f['Material'], c_style), Paragraph(f['Calibre'], c_style), Paragraph(f"{f['Espesor Real (in)']:.4f}\"", c_style), Paragraph(f"{f['Desviación Real (in)']:+4f}\"", c_style), p_e])
         est_rollos.append(('BACKGROUND', (5, idx+1), (5, idx+1), bg))
-    t_3 = Table(t_rollos_d, colWidths=[110, 80, 70, 80, 95, 95])
+    t_3 = Table(t_rollos_d, colWidths=[90, 80, 60, 75, 85, 90])
     t_3.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2b579a')), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3')), ('PADDING', (0,0), (-1,-1), 4)] + est_rollos))
     story.append(t_3)
     
-    # =======================================================
-    # CONTROL DE FORMATO: SALTO SEGURO HACIA LA HOJA 2
-    # =======================================================
     story.append(PageBreak())
-    
-    # Sección 4: Inyección Automática de la Gráfica de Gauss
-    story.append(Paragraph("4. Distribución Estadística de Calidad (Campanas de Gauss)", h2_st))
+    story.append(Paragraph("4. Distribution Estadística de Calidad (Campanas de Gauss)", h2_st))
     
     try:
         plt.figure(figsize=(7, 3.5))
@@ -147,7 +143,6 @@ def crear_pdf_formal(df_final, resumen, tol_p):
         plt.grid(True, linestyle=':', alpha=0.5)
         plt.tight_layout()
         
-        # Procesamiento en la memoria RAM (Indispensable para contenedores en la nube)
         img_buffer = io.BytesIO()
         plt.savefig(img_buffer, format='png', dpi=180)
         img_buffer.seek(0)
@@ -160,8 +155,6 @@ def crear_pdf_formal(df_final, resumen, tol_p):
         story.append(Paragraph(f"<i>No se pudo renderizar la gráfica técnica en esta hoja: {str(e)}</i>", c_style))
         
     story.append(Spacer(1, 20))
-    
-    # Bloque de Validación y Firmas de Control Interno
     f_st = ParagraphStyle('FText', fontName='Helvetica', fontSize=10, alignment=1, spaceAfter=2)
     story.append(Paragraph("___________________________________________________", f_st))
     story.append(Paragraph("<b>Ing. Jesús Morales</b>", f_st))
@@ -173,7 +166,6 @@ def crear_pdf_formal(df_final, resumen, tol_p):
 st.title("⚙️ Suite Interactiva de Riesgo y Control de Suministros")
 st.markdown(f"**Estándar Fijo Planta (Norma Interna):** `±{TOLERANCIA_INTERNA}\"`")
 
-# Distribución del bloque de controles del máster en columnas web
 col_control1, col_control2 = st.columns(2)
 
 with col_control1:
@@ -192,7 +184,6 @@ with col_control2:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# Cargador de Archivos seguro e interactivo para el usuario
 archivo_cargado = st.file_uploader("📥 Cargar datos industriales para simulación (Excel)", type=["xlsx"])
 if archivo_cargado is not None:
     try:
@@ -219,38 +210,60 @@ if archivo_cargado is not None:
                 "Desviación Real (in)": round(esp_in - ESTANDAR[mat][cal], 4)
             })
             
+        # Generamos un DataFrame base y limpio
         df_datos_cargados = pd.DataFrame(res)
         
         if not df_datos_cargados.empty:
-            sig_t = tol_proveedor / 3.0
+            # --- EVALUACIÓN MATEMÁTICA PURA LÍNEA POR LÍNEA ---
             est_l = []
-            
             for _, fila in df_datos_cargados.iterrows():
-                m, c_s = fila['Material'], fila['Calibre']
-                nom = ESTANDAR[m][int(c_s.replace("CAL ", ""))]
-                med_c = float(df_datos_cargados[(df_datos_cargados['Material'] == m) & (df_datos_cargados['Calibre'] == c_s)]['Espesor Real (in)'].mean())
-                p_ab = stats.norm.cdf(nom - TOLERANCIA_INTERNA, loc=med_c, scale=sig_t)
-                p_ar = 1.0 - stats.norm.cdf(nom + TOLERANCIA_INTERNA, loc=med_c, scale=sig_t)
-                r_tot = (p_ab + p_ar) * 100
-                est_l.append("RIESGO BAJO" if r_tot < 1.0 else ("MODERADO" if r_tot <= 5.0 else "ALTO RIESGO"))
+                desv_abs = abs(fila['Desviación Real (in)'])
+                
+                # Clasificación micrométrica inflexible sin promediar
+                if desv_abs <= 0.0040:
+                    est_l.append("RIESGO BAJO")
+                elif desv_abs <= TOLERANCIA_INTERNA: # Rango exacto de 0.0041" a 0.0080"
+                    est_l.append("RIESGO MODERADO")
+                else: # Excede 0.0080"
+                    est_l.append("ALTO RIESGO")
             
+            # Asignamos la lista evaluada a la columna final
             df_datos_cargados['Estatus Planta'] = est_l
             
-            # 1. Tabla de Control en la Web
-            st.subheader("📊 Calibración del Muestreo por Unidad")
-            formatos = {'Espesor Real (in)': '{:.4f}"', 'Nominal Estándar': '{:.3f}"', 'Desviación Real (in)': '{:+.4f}"'}
-            st.dataframe(df_datos_cargados.style.format(formatos).map(colorear_celda, subset=['Estatus Planta']), use_container_width=True)
+            # --- RENDERIZADO DE LA TABLA 1: MUESTREO INDIVIDUAL ---
+            st.subheader("📊 Calibración del Muestreo por Unidad (Rollo por Rollo)")
+            formatos = {
+                'Espesor Real (in)': '{:.4f}"', 
+                'Nominal Estándar': '{:.3f}"', 
+                'Desviación Real (in)': '{:+.4f}"'
+            }
             
-            # 2. Resumen Estratégico Agrupado
-            resumen = calcular_riesgo_grupos(df_datos_cargados, tol_proveedor)
-            st.subheader("📋 Matriz Estratégica de Riesgo Técnico")
-            st.dataframe(pd.DataFrame(resumen).style.map(colorear_celda, subset=['Dictamen']), use_container_width=True)
+            # Renderizado directo e independiente en la pantalla
+            styler_individual = df_datos_cargados.style.format(formatos).map(
+                colorear_matriz_resumen, 
+                subset=['Estatus Planta']
+            )
+            st.dataframe(styler_individual, use_container_width=True)
             
-            # 3. Gráfica Web Interactiva con Plotly
+            # --- RENDERIZADO DE LA TABLA 2: MATRIZ DE RIESGO DE COMPRA ---
+            # Pasamos una copia profunda limpia para que la agregación estadística no contamine la vista individual
+            df_para_resumen = df_datos_cargados.copy()
+            resumen = calcular_riesgo_grupos(df_para_resumen, tol_proveedor)
+            
+            st.subheader("📋 Matriz Estratégica de Riesgo Técnico del Lote (Análisis de Gauss)")
+            df_resumen = pd.DataFrame(resumen)
+            styler_resumen = df_resumen.style.map(
+                colorear_matriz_resumen, 
+                subset=['Dictamen']
+            )
+            st.dataframe(styler_resumen, use_container_width=True)
+            
+            # --- 3. GRÁFICA WEB INTERACTIVA CON PLOTLY ---
             st.subheader("📈 Distribución Probabilística (Campanas de Gauss)")
             fig = go.Figure()
             x_desv = np.linspace(-0.015, 0.015, 400)
             colores = ['#1f77b4', '#ff7f0e', '#2ca02c', '#9467bd']
+            sig_t = tol_proveedor / 3.0
             
             for idx, r in enumerate(resumen):
                 m_desv = r['Media'] - r['Nominal']
@@ -264,7 +277,7 @@ if archivo_cargado is not None:
             fig.update_layout(xaxis_title="Desviación (in)", yaxis_title="Densidad", height=380, margin=dict(l=40, r=40, t=10, b=40))
             st.plotly_chart(fig, use_container_width=True)
             
-            # 4. Sección de Exportación a PDF de ReportLab
+            # --- 4. EXPORTACIÓN A PDF ---
             st.subheader("📄 Entregables de Ingeniería de Calidad")
             pdf_buffer = crear_pdf_formal(df_datos_cargados, resumen, tol_proveedor)
             st.download_button(
