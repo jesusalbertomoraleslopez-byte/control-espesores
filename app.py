@@ -6,6 +6,17 @@ import scipy.stats as stats
 from datetime import datetime
 import io
 
+import streamlit as st
+
+# Configuración de la página (opcional, ayuda a que se vea mejor)
+st.set_page_config(layout="wide")
+
+# Agregar el banner desde la ruta del repositorio
+st.image("BANNER CONTROL DE ESPESORES APP.png", use_container_width=True)
+
+# El resto de tu código de la aplicación va aquí abajo...
+
+
 # Componentes oficiales de ReportLab para la maquetación formal del informe
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image as RLImage
