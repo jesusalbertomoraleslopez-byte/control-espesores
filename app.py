@@ -71,7 +71,7 @@ def crear_pdf_formal(df_final, tol_p):
     story.append(Paragraph(f"<b>Parámetro Comercial:</b> Desviación Ofertada por Proveedor en ±{tol_p:.3f}\"", m_st))
     story.append(Spacer(1, 10))
     
-    # 1. Tabla de calibración general (M1)
+    # 1. Tabla de calibración general
     story.append(Paragraph("1. Calibración del Muestreo por Unidad (Rollo por Rollo)", h2_st))
     t_rollos_d = [[Paragraph("Rollo", h_style), Paragraph("Material", h_style), Paragraph("Calibre", h_style), Paragraph("Espesor (in)", h_style), Paragraph("Riesgo %", h_style), Paragraph("Riesgo", h_style)]]
     for idx, f in df_final.reset_index(drop=True).iterrows():
@@ -79,11 +79,11 @@ def crear_pdf_formal(df_final, tol_p):
             Paragraph(str(f['Rollo']), c_style), Paragraph(f['Material'], c_style), Paragraph(str(f['Calibre']), c_style),
             Paragraph(f"{f['Espesor Real (in)']:.4f}\"", c_style), Paragraph(f"{f['% de Riesgo']:.2f}%", c_style), Paragraph(f['Riesgo'], c_style)
         ])
-    t_1 = Table(t_rollos_d, colWidths=[90, 100, 60, 90, 80, 100])
+    t_1 = Table(t_rollos_d, colWidths=[90, 100, 70, 90, 80, 100])
     t_1.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2b579a')), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3'))]))
     story.append(t_1)
     
-    # 2. Análisis jerárquico estructurado (M2)
+    # 2. Análisis jerárquico estructurado
     story.append(Paragraph("2. Análisis Estructurado y Clasificación por Espesor Nominal", h2_st))
     df_grouped = df_final.groupby(['Material', 'Calibre', 'Nominal Estándar'])
     
@@ -92,6 +92,7 @@ def crear_pdf_formal(df_final, tol_p):
         texto_especificacion = f"Especificación: {mat} - {calibre} - Espesor Teórico: {nominal:.3f}\" | Tolerancia Aceptable: ±{TOLERANCIA_INTERNA:.3f}\""
         story.append(Paragraph(texto_especificacion, h3_st))
         
+        # Estructura limpia sin la columna 'Espesor Original' en los desgloses
         t_group_d = [[Paragraph("Número Rollo", h_style), Paragraph("Espesor Medido (in)", h_style), Paragraph("Desviación Real", h_style), Paragraph("Probabilidad de Fallo", h_style), Paragraph("Dictamen Final", h_style)]]
         est_estilo_grupo = [('BACKGROUND', (0,0), (-1,0), colors.HexColor('#708090')), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#A0A0A0'))]
         
@@ -111,12 +112,12 @@ def crear_pdf_formal(df_final, tol_p):
             ])
             est_estilo_grupo.append(('BACKGROUND', (4, fila_pdf), (4, fila_pdf), bg_color))
             
-        t_g = Table(t_group_d, colWidths=[110, 110, 100, 100, 100])
+        t_g = Table(t_group_d, colWidths=[110, 110, 110, 110, 110])
         t_g.setStyle(TableStyle(est_estilo_grupo))
         story.append(t_g)
         story.append(Spacer(1, 8))
         
-    # 3. Distribución estadística de Gauss por sección aislada (M3)
+    # 3. Distribución estadística de Gauss por sección aislada
     story.append(PageBreak())
     story.append(Paragraph("3. Análisis de Distribución Probabilística por Especificación Técnica", h2_st))
     
@@ -161,7 +162,7 @@ def crear_pdf_formal(df_final, tol_p):
     doc.build(story)
     buffer.seek(0)
     return buffer
-st.title("⚙️ Suite Interactiva de Riesgo y Control de Suministros")
+st.title("⚙️ Suite Interactive de Riesgo y Control de Suministros")
 st.markdown(f"**Estándar Fijo Planta (Norma Interna de Diseño):** `±{TOLERANCIA_INTERNA}\"`")
 
 col_control1, col_control2 = st.columns(2)
@@ -252,19 +253,20 @@ if archivo_cargado is not None:
             st.dataframe(styler_individual, use_container_width=True)
             
             # ======================================================================
-            # MODIFICACIÓN 2: ANÁLISIS ESTRUCTURADO Y CLASIFICACIÓN POR ESPESOR NOMINAL
+            # MODIFICACIÓN 2: CLASIFICACIÓN JERÁRQUICA Y SE REMOVE "ESPESOR ORIGINAL"
             # ======================================================================
             st.subheader("📋 Análisis Clasificado Estructurado por Espesor Nominal Teórico")
             df_grouped = df_datos_cargados.groupby(['Material', 'Calibre', 'Nominal Estándar'])
             
             for (material, calibre, nominal), grupo in df_grouped:
-                # ENCABEZADO ACTUALIZADO CON TÍTULO DE CALIBRE Y TOLERANCIA ACEPTABLE
+                # Encabezado corregido con especificaciones y tolerancia aceptable
                 st.markdown(f"#### 🌐 {material} — `{calibre}` — Espesor Teórico: `{nominal:.3f}\"` | Tolerancia Aceptable: `±{TOLERANCIA_INTERNA:.3f}\"`")
                 
-                columnas_vista = ['Rollo', 'Espesor Original', 'Espesor Real (in)', 'Desviación Real (in)', '% de Riesgo', 'Dictamen Final']
+                # SE EXCLUYE COMPLETAMENTE 'Espesor Original' para la vista solicitada
+                columnas_vista = ['Rollo', 'Espesor Real (in)', 'Desviación Real (in)', '% de Riesgo', 'Dictamen Final']
                 df_vista_grupo = grupo[columnas_vista]
                 
-                # Renderizado con colores (Verde = ACEPTADO, Rojo = NO ACEPTADO)
+                # Renderizado con colores condicionales (Verde = ACEPTADO, Rojo = NO ACEPTADO)
                 styler_grupo = df_vista_grupo.style.format(formatos).map(colorear_matriz_resumen, subset=['Dictamen Final'])
                 st.dataframe(styler_grupo, use_container_width=True)
             # ======================================================================
@@ -317,4 +319,3 @@ if archivo_cargado is not None:
         st.error(f"❌ Error crítico en el procesamiento del lote técnico: {str(e)}")
 else:
     st.info("💡 Tablero listo. Por favor, cargue un archivo de Excel utilizando la plantilla estándar para iniciar las simulaciones estadísticas.")
-
