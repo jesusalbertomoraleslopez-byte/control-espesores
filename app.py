@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 # 3. MATRIZ TÉCNICA PLANTA (Límites rígidos de diseño nominal)
 ESTANDAR = {
     "Galvanizado": {10: 0.138, 12: 0.108, 14: 0.079, 16: 0.064},
-    "Decapado": {12: 0.105, 14: 0.075, 16: 0.060}
+    "Decapado": {10: 0.135, 12: 0.105, 14: 0.075, 16: 0.060}
 }
 TOLERANCIA_INTERNA = 0.008
 
