@@ -338,20 +338,43 @@ st.markdown("""
         background-color: #111111 !important;
         border-right: 1px solid #1E293B !important;
     }
+    
+    /* Reducir espacio superior en el sidebar para subir el logotipo */
+    [data-testid="stSidebarUserContent"] {
+        padding-top: 1rem !important;
+    }
+    [data-testid="stSidebarUserContent"] > div:first-child {
+        margin-top: -35px !important;
+    }
+    
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p, 
-    [data-testid="stSidebar"] span, 
     [data-testid="stSidebar"] label {
         color: #FFFFFF !important;
         font-family: 'Questrial', sans-serif !important;
     }
     
-    /* Botones de navegación en barra lateral */
+    /* Excluir spans de iconos para evitar texto 'keyboard_double' */
+    [data-testid="stSidebar"] span:not([class*="material"]):not([class*="icon"]):not([class*="symbol"]) {
+        color: #FFFFFF !important;
+        font-family: 'Questrial', sans-serif !important;
+    }
+    
+    /* Botones de navegación en barra lateral más compactos */
+    [data-testid="stSidebar"] div[role="radiogroup"] {
+        gap: 6px !important;
+    }
     [data-testid="stSidebar"] div[role="radiogroup"] label {
         color: #FFFFFF !important;
-        font-size: 14px !important;
+        font-size: 13.5px !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
     }
     [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
         color: #EC2024 !important;
+    }
+    [data-testid="stSidebar"] hr {
+        margin-top: 8px !important;
+        margin-bottom: 8px !important;
     }
 
     /* Estilos para inputs de contraseña o textos en barra lateral */
