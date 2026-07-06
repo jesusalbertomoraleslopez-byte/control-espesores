@@ -473,14 +473,7 @@ if "logged_in" not in st.session_state:
     st.session_state["user_role"] = None
     st.session_state["username"] = None
 
-# Mostrar el banner corporativo de 2000x400 en la parte superior del panel principal
-banner_path = os.path.join(BASE_DIR, "BANNER CONTROL DE ESPESORES APP.png")
-if os.path.exists(banner_path):
-    st.image(banner_path, use_container_width=True)
-else:
-    banner_path_alt = os.path.join(BASE_DIR, "BANNER CONTROL DE ESPESORES APP.png.png")
-    if os.path.exists(banner_path_alt):
-        st.image(banner_path_alt, use_container_width=True)
+
 
 # Renderizado de Logo en Barra Lateral
 logo_neg_path = os.path.join(BASE_DIR, "logo_sigrama_negative.png")
