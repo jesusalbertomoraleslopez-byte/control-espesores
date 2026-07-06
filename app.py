@@ -105,7 +105,7 @@ def generar_excel_plantilla():
             worksheet.column_dimensions[col_letter].width = max(max_len + 4, 16)
             
     return output.getvalue()
-def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, df_raw=None):
+def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, df_raw=None, meta_info=None):
     """Genera la estructura del documento técnico formal incorporando los nuevos formatos de color y títulos, y miniaturas."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -130,10 +130,28 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, 
     else:
         story.append(Paragraph("SIGRAMA PLANTA METALES", t_st))
         
-    story.append(Paragraph("<b>Documento:</b> Reporte Técnico de Ingeniería de Calidad y Evaluación de Suministro", m_st))
-    story.append(Paragraph(f"<b>Fecha de Análisis:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", m_st))
-    story.append(Paragraph(f"<b>Parámetro Comercial:</b> Desviación Ofertada por Proveedor en ±{tol_p:.3f}\"", m_st))
-    story.append(Spacer(1, 10))
+    if meta_info:
+        meta_data = [
+            [Paragraph("<b>Folio Oficial:</b>", m_st), Paragraph(meta_info.get("Folio", "Borrador"), m_st), Paragraph("<b>Fecha de Análisis:</b>", m_st), Paragraph(meta_info.get("Fecha", datetime.now().strftime('%d/%m/%Y %H:%M')), m_st)],
+            [Paragraph("<b>Proveedor:</b>", m_st), Paragraph(meta_info.get("Proveedor", "N/D"), m_st), Paragraph("<b>Contacto (Email/Tel):</b>", m_st), Paragraph(meta_info.get("Contacto", "N/D"), m_st)],
+            [Paragraph("<b>Certificado (Lote/ID):</b>", m_st), Paragraph(meta_info.get("Certificado", "N/D"), m_st), Paragraph("<b>Tolerancia Base:</b>", m_st), Paragraph(f"±{tol_p:.3f}\"", m_st)]
+        ]
+        t_meta = Table(meta_data, colWidths=[110, 180, 110, 120])
+        t_meta.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8F9FA')),
+            ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#F8F9FA')),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3')),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+        ]))
+        story.append(t_meta)
+    else:
+        story.append(Paragraph("<b>Documento:</b> Reporte Técnico de Ingeniería de Calidad y Evaluación de Suministro", m_st))
+        story.append(Paragraph(f"<b>Fecha de Análisis:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", m_st))
+        story.append(Paragraph(f"<b>Parámetro Comercial:</b> Desviación Ofertada por Proveedor en ±{tol_p:.3f}\"", m_st))
+        
+    story.append(Spacer(1, 15))
     
     # 1. Tabla de calibración general
     story.append(Paragraph("1. Calibración del Muestreo por Unidad (Rollo por Rollo)", h2_st))
@@ -762,8 +780,27 @@ if opcion_menu == "📊 Suite de Análisis":
                                 with open(ruta_excel_dest, "wb") as f_out:
                                     f_out.write(st.session_state["raw_excel_bytes"])
                                 
+                            # Construir Metadata para el PDF
+                            contact_info = "N/D"
+                            for p in database.listar_proveedores():
+                                if p["nombre"] == prov_input:
+                                    # Formatear la cadena de contacto omitiendo partes vacías
+                                    parts = [p['contacto']]
+                                    if p['correo']: parts.append(p['correo'])
+                                    if p['telefono']: parts.append(p['telefono'])
+                                    contact_info = " / ".join([str(x) for x in parts if str(x).strip()])
+                                    break
+                                    
+                            meta_info = {
+                                "Folio": nuevo_folio,
+                                "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "Proveedor": prov_input,
+                                "Contacto": contact_info,
+                                "Certificado": cert_info_input
+                            }
+                                
                             # 3. Generar y guardar PDF de reporte técnico
-                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_file_input.getvalue(), email_img_data, df_raw=st.session_state.get("df_raw_excel"))
+                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_file_input.getvalue(), email_img_data, df_raw=st.session_state.get("df_raw_excel"), meta_info=meta_info)
                             with open(ruta_reporte_dest, "wb") as f_out:
                                 f_out.write(report_pdf_bytes.getvalue())
                                 
