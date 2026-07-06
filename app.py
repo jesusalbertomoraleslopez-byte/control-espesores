@@ -467,6 +467,21 @@ st.markdown("""
 
 import os
 
+# Inicializar variables de sesión para el control de acceso
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+    st.session_state["user_role"] = None
+    st.session_state["username"] = None
+
+# Mostrar el banner corporativo de 2000x400 en la parte superior del panel principal
+banner_path = os.path.join(BASE_DIR, "BANNER CONTROL DE ESPESORES APP.png")
+if os.path.exists(banner_path):
+    st.image(banner_path, use_container_width=True)
+else:
+    banner_path_alt = os.path.join(BASE_DIR, "BANNER CONTROL DE ESPESORES APP.png.png")
+    if os.path.exists(banner_path_alt):
+        st.image(banner_path_alt, use_container_width=True)
+
 # Renderizado de Logo en Barra Lateral
 logo_neg_path = os.path.join(BASE_DIR, "logo_sigrama_negative.png")
 logo_pos_path = os.path.join(BASE_DIR, "logo_sigrama.png")
@@ -477,20 +492,60 @@ elif os.path.exists(logo_pos_path):
 else:
     st.sidebar.subheader("INDUSTRIA SIGRAMA")
 
-# Sección de Perfil de Usuario
-st.sidebar.markdown("""
-<div style="background-color: #1E293B; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 15px; margin-top: 10px;">
-    <p style="margin: 0; color: #FFFFFF; font-family: 'Questrial', sans-serif; font-size: 13px;">
-        👤 Usuario: <b>Ingeniero de Calidad</b>
-    </p>
-    <p style="margin: 5px 0 0 0; color: #EC2024; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: bold;">
-        🔑 Rol: Administrador de Planta
-    </p>
-</div>
-""", unsafe_allow_html=True)
+st.sidebar.write("---")
+
+# Control de Sesión / Login en Barra Lateral
+if not st.session_state["logged_in"]:
+    st.sidebar.subheader("🔒 Acceso al Sistema")
+    login_user = st.sidebar.text_input("Usuario:", key="login_user_input")
+    login_pass = st.sidebar.text_input("Contraseña:", type="password", key="login_pass_input")
+    if st.sidebar.button("Iniciar Sesión", use_container_width=True):
+        if login_user == "admin" and login_pass == "admin_sigrama":
+            st.session_state["logged_in"] = True
+            st.session_state["user_role"] = "Administrador"
+            st.session_state["username"] = "admin"
+            st.rerun()
+        elif login_user == "operador" and login_pass == "operador_sigrama":
+            st.session_state["logged_in"] = True
+            st.session_state["user_role"] = "Operador"
+            st.session_state["username"] = "operador"
+            st.rerun()
+        else:
+            st.sidebar.error("❌ Credenciales incorrectas.")
+            
+    st.warning("🔒 **Control de Acceso:** Por favor introduzca su usuario y contraseña en la barra lateral para ingresar al sistema.")
+    st.info("💡 **Credenciales por Defecto:**\n* **Administrador:** usuario `admin` | clave `admin_sigrama`\n* **Operador:** usuario `operador` | clave `operador_sigrama`")
+    st.stop()
+else:
+    st.sidebar.markdown(f"""
+    <div style="background-color: #1E293B; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+        <p style="margin: 0; color: #FFFFFF; font-family: 'Questrial', sans-serif; font-size: 13px;">
+            👤 Usuario: <b>{st.session_state['username']}</b>
+        </p>
+        <p style="margin: 5px 0 0 0; color: #EC2024; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: bold;">
+            🔑 Rol: {st.session_state['user_role']}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.sidebar.button("Cerrar Sesión", use_container_width=True):
+        st.session_state["logged_in"] = False
+        st.session_state["user_role"] = None
+        st.session_state["username"] = None
+        st.rerun()
 
 st.sidebar.write("---")
-opcion_menu = st.sidebar.radio("Módulos del Sistema:", ["📊 Suite de Análisis", "🔍 Historial de Reportes", "🏢 Catálogo de Proveedores"])
+opcion_menu = st.sidebar.radio(
+    "Módulos del Sistema:", 
+    [
+        "1. 📊 Dashboard de Control", 
+        "2. ⚙️ Suite de Análisis", 
+        "3. 🔍 Consulta e Historial", 
+        "4. 🏢 Catálogo de Proveedores", 
+        "5. 📜 Sistema de Gestión de Calidad (SGC)",
+        "6. 🌐 Industria 4.0 y Manufactura",
+        "7. 📘 Manual de Operación"
+    ]
+)
 
 st.sidebar.write("---")
 st.sidebar.subheader("🛠️ Parámetros de Control")
@@ -510,12 +565,14 @@ st.sidebar.download_button(
     use_container_width=True
 )
 
-st.sidebar.write("---")
-st.sidebar.subheader("⚠️ Zona de Peligro")
-if st.sidebar.button("🗑️ Limpiar Base de Datos", type="primary", use_container_width=True):
-    database.limpiar_base_datos()
-    st.sidebar.success("Base de datos y registros limpiados con éxito.")
-    st.rerun()
+# Permitir limpiar base de datos únicamente al Administrador
+if st.session_state["user_role"] == "Administrador":
+    st.sidebar.write("---")
+    st.sidebar.subheader("⚠️ Zona de Peligro")
+    if st.sidebar.button("🗑️ Limpiar Base de Datos", type="primary", use_container_width=True):
+        database.limpiar_base_datos()
+        st.sidebar.success("Base de datos y registros limpiados con éxito.")
+        st.rerun()
 
 st.sidebar.markdown("""
     <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #334155;">
@@ -530,7 +587,60 @@ st.markdown('<p style="text-align: center; font-size: 16px; font-weight: bold; c
 st.markdown('<hr style="border: 1px solid #EC2024; margin: 15px 0;">', unsafe_allow_html=True)
 
 # Enrutamiento según navegación lateral
-if opcion_menu == "📊 Suite de Análisis":
+if opcion_menu == "1. 📊 Dashboard de Control":
+    st.title("📊 Dashboard de Control y Dictaminación")
+    st.markdown("Estadísticas del control de calidad e inspecciones de espesores de materiales.")
+    
+    import database
+    reps = database.listar_reportes()
+    
+    if not reps:
+        st.info("💡 Aún no hay expedientes guardados en la base de datos. Los indicadores se mostrarán cuando guarde su primer análisis.")
+    else:
+        df_reps = pd.DataFrame(reps)
+        
+        # Calcular KPI principales
+        total_expedientes = len(df_reps)
+        total_rollos = int(df_reps["total_rollos"].sum())
+        total_aceptados = int(df_reps["aceptados"].sum())
+        total_rechazados = int(df_reps["rechazados"].sum())
+        
+        tasa_aceptacion = (total_aceptados / total_rollos * 100) if total_rollos > 0 else 100.0
+        promedio_riesgo = df_reps["riesgo_promedio"].mean()
+        
+        # Renderizado de KPI en tarjetas estilizadas
+        col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
+        with col_kpi1:
+            st.metric("📁 Total Expedientes", total_expedientes)
+        with col_kpi2:
+            st.metric("🌀 Rollos Analizados", total_rollos)
+        with col_kpi3:
+            st.metric("✅ Aceptados (Tasa)", f"{total_aceptados} ({tasa_aceptacion:.1f}%)")
+        with col_kpi4:
+            st.metric("⚠️ Riesgo Promedio", f"{promedio_riesgo:.2f}%")
+            
+        st.write("---")
+        
+        # Gráficas
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st.write("##### 📊 Desglose de Rollos por Proveedor:")
+            df_prov = df_reps.groupby("proveedor")[["aceptados", "rechazados"]].sum()
+            st.bar_chart(df_prov)
+            
+        with col_g2:
+            st.write("##### 📈 Riesgo Promedio Histórico por Proveedor (%):")
+            df_riesgo = df_reps.groupby("proveedor")["riesgo_promedio"].mean().reset_index()
+            df_riesgo = df_riesgo.set_index("proveedor")
+            st.area_chart(df_riesgo)
+            
+        # Tabla resumen ejecutivo
+        st.write("##### 📋 Últimos Expedientes Generados:")
+        df_resumen = df_reps[["folio", "fecha", "proveedor", "total_rollos", "aceptados", "rechazados", "riesgo_promedio"]].copy()
+        df_resumen.columns = ["Folio", "Fecha", "Proveedor", "Total Rollos", "Aceptados", "Rechazados", "Riesgo Promedio (%)"]
+        st.dataframe(df_resumen.sort_values(by="Folio", ascending=False).head(5), use_container_width=True, hide_index=True)
+
+elif opcion_menu == "2. ⚙️ Suite de Análisis":
     st.title("⚙️ Suite de Riesgo y Control de Suministros")
     st.markdown(f"**Estándar Fijo Planta (Norma Interna de Diseño):** `±{TOLERANCIA_INTERNA}\"`")
 
@@ -857,19 +967,23 @@ if opcion_menu == "📊 Suite de Análisis":
     else:
         st.info("💡 Tablero listo. Por favor, cargue un archivo de Excel utilizando la plantilla estándar en la barra lateral para iniciar las simulaciones estadísticas.")
 
-elif opcion_menu == "🔍 Historial de Reportes":
+elif opcion_menu == "3. 🔍 Consulta e Historial":
     import database
-    st.title("🔍 Historial de Consultas de Propuestas")
+    st.title("🔍 Consulta e Historial de Expedientes")
     st.markdown("Busque y consulte expedientes históricos de propuestas de proveedores cargados en el sistema.")
     
-    # 1. Filtros
+    # 1. Filtros de búsqueda avanzados
     with st.expander("🔍 Filtros de Búsqueda", expanded=True):
-        col_f1, col_f2 = st.columns(2)
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
         with col_f1:
             rango_fecha = st.date_input("Rango de Fechas:", value=(datetime.now() - pd.Timedelta(days=90), datetime.now()))
         with col_f2:
             proveedores_list = ["Todos"] + database.obtener_proveedores()
             prov_filtro = st.selectbox("Filtrar por Proveedor:", proveedores_list)
+        with col_f3:
+            veredicto_filtro = st.selectbox("Filtrar por Dictamen:", ["Todos", "Solo Aceptados", "Solo Rechazados"])
+        with col_f4:
+            buscar_texto = st.text_input("Búsqueda Rápida:", placeholder="Buscar Folio...")
             
     # Parsear rango de fechas
     fecha_ini = None
@@ -891,8 +1005,25 @@ elif opcion_menu == "🔍 Historial de Reportes":
         st.info("No se encontraron registros en el historial con los filtros aplicados.")
     else:
         df_hist = pd.DataFrame(records)
-        # Mostrar tabla resumida
-        st.write("### Resumen de Expedientes Encontrados")
+        
+        # Aplicar filtros locales de Dictamen y Búsqueda de texto
+        if veredicto_filtro == "Solo Aceptados":
+            df_hist = df_hist[df_hist["rechazados"] == 0]
+        elif veredicto_filtro == "Solo Rechazados":
+            df_hist = df_hist[df_hist["rechazados"] > 0]
+            
+        if buscar_texto.strip():
+            txt = buscar_texto.strip().lower()
+            df_hist = df_hist[
+                df_hist["folio"].str.lower().str.contains(txt, na=False) |
+                df_hist["certificado_info"].str.lower().str.contains(txt, na=False)
+            ]
+            
+        if df_hist.empty:
+            st.warning("⚠️ Ningún expediente coincide con los filtros aplicados.")
+        else:
+            # Mostrar tabla resumida
+            st.write("### Resumen de Expedientes Encontrados")
         df_hist_view = df_hist[[
             "folio", "fecha", "proveedor", "certificado_info", 
             "total_rollos", "aceptados", "rechazados", "riesgo_promedio"
@@ -1244,13 +1375,16 @@ elif opcion_menu == "🔍 Historial de Reportes":
                     
             st.write("---")
             st.write("##### 🗑️ Zona de Peligro: Eliminar Expediente")
-            conf_eliminar_exp = st.checkbox(f"Confirmo que deseo eliminar definitivamente el expediente **{rec_sel['folio']}** de la base de datos.", key=f"chk_eliminar_{rec_sel['folio']}")
-            if conf_eliminar_exp:
-                if st.button("ELIMINAR EXPEDIENTE", type="primary", key=f"btn_eliminar_exp_{rec_sel['folio']}"):
-                    database.eliminar_reporte(rec_sel['folio'])
-                    st.rerun()
+            if st.session_state["user_role"] == "Administrador":
+                conf_eliminar_exp = st.checkbox(f"Confirmo que deseo eliminar definitivamente el expediente **{rec_sel['folio']}** de la base de datos.", key=f"chk_eliminar_{rec_sel['folio']}")
+                if conf_eliminar_exp:
+                    if st.button("ELIMINAR EXPEDIENTE", type="primary", key=f"btn_eliminar_exp_{rec_sel['folio']}"):
+                        database.eliminar_reporte(rec_sel['folio'])
+                        st.rerun()
+            else:
+                st.warning("⚠️ Su rol actual (Operador) no tiene permisos para eliminar expedientes.")
 
-elif opcion_menu == "🏢 Catálogo de Proveedores":
+elif opcion_menu == "4. 🏢 Catálogo de Proveedores":
     importlib.reload(database)
     st.title("🏢 Catálogo de Proveedores de Materia Prima")
     st.markdown("Registre, consulte y administre los proveedores oficiales de la planta.")
@@ -1305,22 +1439,112 @@ elif opcion_menu == "🏢 Catálogo de Proveedores":
         # 3. Eliminar Proveedor
         st.write("---")
         st.write("### 🗑️ Eliminar Proveedor del Catálogo")
-        prov_a_eliminar = st.selectbox(
-            "Seleccione el proveedor que desea eliminar:",
-            options=df_provs["nombre"].tolist(),
-            key="selectbox_eliminar_prov"
-        )
-        
-        if prov_a_eliminar:
-            row_prov = df_provs[df_provs["nombre"] == prov_a_eliminar].iloc[0]
+        if st.session_state["user_role"] == "Administrador":
+            prov_a_eliminar = st.selectbox(
+                "Seleccione el proveedor que desea eliminar:",
+                options=df_provs["nombre"].tolist(),
+                key="selectbox_eliminar_prov"
+            )
             
-            # Confirmación
-            confirm_eliminar = st.checkbox(f"Confirmo que deseo eliminar definitivamente a **{prov_a_eliminar}** del sistema.", key="check_eliminar_prov")
-            if confirm_eliminar:
-                btn_eliminar = st.button("Eliminar Proveedor", type="primary", key="btn_eliminar_prov")
-                if btn_eliminar:
-                    # Castear explicitamente a int nativo de Python para evitar fallos silenciosos de SQLite con numpy.int64
-                    id_prov_int = int(row_prov["id"])
-                    database.eliminar_proveedor(id_prov_int)
-                    st.rerun()
+            if prov_a_eliminar:
+                row_prov = df_provs[df_provs["nombre"] == prov_a_eliminar].iloc[0]
+                
+                # Confirmación
+                confirm_eliminar = st.checkbox(f"Confirmo que deseo eliminar definitivamente a **{prov_a_eliminar}** del sistema.", key="check_eliminar_prov")
+                if confirm_eliminar:
+                    btn_eliminar = st.button("Eliminar Proveedor", type="primary", key="btn_eliminar_prov")
+                    if btn_eliminar:
+                        # Castear explicitamente a int nativo de Python para evitar fallos silenciosos de SQLite con numpy.int64
+                        id_prov_int = int(row_prov["id"])
+                        database.eliminar_proveedor(id_prov_int)
+                        st.rerun()
+        else:
+            st.warning("⚠️ Su rol actual (Operador) no tiene permisos para eliminar proveedores.")
+
+elif opcion_menu == "5. 📜 Sistema de Gestión de Calidad (SGC)":
+    st.title("📜 Sistema de Gestión de Calidad (SGC)")
+    st.subheader("Procedimiento Operativo de Control de Espesores de Suministros")
+    st.markdown("---")
+    
+    st.markdown("""
+    ### 📂 Código: PR-SGC-CAL-04 (Control de Suministros Metálicos)
+    **Referencia ISO 9001:2015:** Sección *8.4 - Control de los procesos, productos y servicios suministrados externamente*.
+    
+    #### 1. Objetivo
+    Asegurar que todas las láminas, rollos y perfiles metálicos provistos por proveedores aprobados cumplan con las tolerancias internas de diseño mecánico, minimizando riesgos de fractura, embutición defectuosa o fallos por calibrado de material en planta.
+    
+    #### 2. Alcance
+    Aplica para todo lote recibido de proveedores externos en las plantas de Industria Sigrama S.A. de C.V.
+    
+    #### 3. Procedimiento Operativo
+    1. **Recepción:** El almacén recibe el material metálico junto con el **Certificado de Calidad original del Proveedor**.
+    2. **Muestreo:** El Inspector de Calidad realiza mediciones físicas (micrómetro calibrado) en diversos puntos del lote/rollo.
+    3. **Captura:** Se ingresan las mediciones en la plantilla oficial y se carga en el sistema digital de control.
+    4. **Simulación de Riesgo:** El sistema calcula la probabilidad de falla estadística (Gauss) contra el estándar de diseño.
+    5. **Dictaminación:** Si el riesgo excede el margen tolerable, el dictamen es **RECHAZADO**.
+    6. **Notificación:** Se genera el dictamen y se envía de forma inmediata al departamento de Compras Interno para autorizar o rechazar la compra.
+    
+    #### 4. Responsables y Roles
+    * **Operador / Inspector de Calidad:** Responsable de tomar las mediciones y cargar los análisis en el sistema.
+    * **Director de Maquinados (Aprobador Técnico):** Firma y valida el dictamen final.
+    * **Administrador del Sistema:** Administra la base de datos y roles de acceso.
+    """)
+
+elif opcion_menu == "6. 🌐 Industria 4.0 y Manufactura":
+    st.title("🌐 Manufactura Inteligente & Industria 4.0")
+    st.subheader("Estrategia Tecnológica de Calidad Digital en Industria Sigrama")
+    st.markdown("---")
+    
+    st.markdown("""
+    ### 💡 Justificación de Manufactura Inteligente
+    En la era de la **Industria 4.0**, las operaciones de control de calidad deben pasar de ser reactivas a proactivas. Este sistema de análisis predictivo de espesores utiliza modelos probabilísticos continuos para estimar el riesgo real del material antes de que entre a la línea de ensamblaje. Esto previene costosos paros de línea y roturas de troqueles, digitalizando el conocimiento del proceso.
+    
+    ### 📈 Beneficios Estratégicos del Proyecto
+    * **Eliminación del Papel y Trazabilidad:** Base de datos relacional persistente que registra fecha, proveedor, mediciones crudas y dictámenes.
+    * **Reducción de Tiempos:** Dictaminación automatizada de 2 horas de cálculo manual a solo 2 segundos mediante algoritmos probabilísticos.
+    * **Automatización de Comunicaciones:** Borradores de correos integrados nativos en Outlook que agilizan las decisiones de compra técnica.
+    * **Control Centralizado:** Respaldo y sincronización automática en la nube (GitHub) para auditorías internas e indicadores globales.
+    
+    ### 🛠️ Resumen del Stack Tecnológico
+    * **Core de Lenguaje:** Python 3.10
+    * **Interfaz Gráfica:** Streamlit (Tecnología reactiva y responsive para analítica de datos)
+    * **Procesamiento de Datos:** Pandas y NumPy (Cálculo vectorial de Gauss y tolerancias)
+    * **Generación de Reportes:** ReportLab (Compilador nativo de documentos PDF vectorizados de alta calidad)
+    * **Fusión de Documentos:** PyMuPDF / fitz (Consolidación de múltiples certificados de calidad PDF en memoria)
+    * **Persistencia y Respaldo:** SQLite3 (Base de datos transaccional) + Control de versiones sincronizado en GitHub
+    """)
+
+elif opcion_menu == "7. 📘 Manual de Operación":
+    st.title("📘 Manual de Operación del Sistema")
+    st.subheader("Guía del Usuario del Sistema de Control de Espesores")
+    st.markdown("---")
+    
+    st.markdown("""
+    #### 📋 Introducción
+    Este sistema evalúa la conformidad técnica de los rollos de lámina entregados por los proveedores contra la norma interna de diseño de la planta.
+    
+    #### ⚙️ Paso 1: Obtener la Plantilla de Captura
+    1. Vaya a la barra lateral izquierda.
+    2. Haga clic en el botón **`📝 Descargar Plantilla Excel`**.
+    3. Abra el archivo Excel descargado y capture las mediciones tomadas del rollo en planta (columnas: `Numero_Rollo`, `Material`, `Calibre`, `Espesor_Medido`, `Unidad`).
+    
+    #### ⚙️ Paso 2: Ejecutar el Análisis
+    1. Diríjase al menú **`2. ⚙️ Suite de Análisis`**.
+    2. Suba su archivo Excel completado.
+    3. Seleccione el proveedor del catálogo.
+    4. Capture el número de Certificado/Lote del material.
+    5. Cargue el o los certificados PDF provistos por el proveedor.
+    6. Cargue una captura de pantalla del correo de Compras (puede usar el botón rojo para pegar directamente desde el portapapeles).
+    7. Revise la simulación y haga clic en **`Confirmar y Guardar en Base de Datos`**.
+    
+    #### ⚙️ Paso 3: Consultar y Descargar Reportes
+    1. Vaya al módulo **`3. 🔍 Consulta e Historial`**.
+    2. Utilice los filtros para ubicar el folio deseado.
+    3. Descargue el Reporte Técnico oficial de inspección o los certificados asociados.
+    
+    #### ⚙️ Paso 4: Enviar Dictamen a Compras
+    1. En los detalles del expediente en **`3. 🔍 Consulta e Historial`**, haga clic en **`✉️ Descargar Borrador con Adjuntos`**.
+    2. Abra el archivo `.eml` descargado haciendo doble clic.
+    3. Su Outlook se abrirá automáticamente con el borrador editable, destinatarios oficiales prellenados, cuerpo estético formateado y los PDFs de reporte y certificado ya adjuntos. Pulse **Enviar** en Outlook.
+    """)
 
