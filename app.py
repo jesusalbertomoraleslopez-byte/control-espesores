@@ -536,7 +536,8 @@ opcion_menu = st.sidebar.radio(
         "4. 🏢 Catálogo de Proveedores", 
         "5. 📜 Sistema de Gestión de Calidad (SGC)",
         "6. 🌐 Industria 4.0 y Manufactura",
-        "7. 📘 Manual de Operación"
+        "7. 📘 Manual de Operación",
+        "8. 🔧 Mantenimiento del Sistema"
     ]
 )
 
@@ -557,15 +558,6 @@ st.sidebar.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     use_container_width=True
 )
-
-# Permitir limpiar base de datos únicamente al Administrador
-if st.session_state["user_role"] == "Administrador":
-    st.sidebar.write("---")
-    st.sidebar.subheader("⚠️ Zona de Peligro")
-    if st.sidebar.button("🗑️ Limpiar Base de Datos", type="primary", use_container_width=True):
-        database.limpiar_base_datos()
-        st.sidebar.success("Base de datos y registros limpiados con éxito.")
-        st.rerun()
 
 st.sidebar.markdown("""
     <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #334155;">
@@ -1540,4 +1532,93 @@ elif opcion_menu == "7. 📘 Manual de Operación":
     2. Abra el archivo `.eml` descargado haciendo doble clic.
     3. Su Outlook se abrirá automáticamente con el borrador editable, destinatarios oficiales prellenados, cuerpo estético formateado y los PDFs de reporte y certificado ya adjuntos. Pulse **Enviar** en Outlook.
     """)
+
+elif opcion_menu == "8. 🔧 Mantenimiento del Sistema":
+    st.title("🔧 Mantenimiento del Sistema")
+    st.markdown("Herramientas de administración, depuración de registros y enlaces de respaldo en GitHub.")
+    st.markdown("---")
+    
+    if st.session_state["user_role"] != "Administrador":
+        st.error("❌ **Acceso Denegado:** Este módulo requiere privilegios de **Administrador**.")
+        st.info("💡 Por favor, inicie sesión con la cuenta de administrador en la barra lateral para acceder a estas funciones.")
+    else:
+        # Calcular espacio en disco y archivos
+        import os
+        import database
+        
+        # Tamaño de la base de datos
+        db_path = os.path.join(database.BASE_DIR, "espesores_historial.db")
+        db_size_kb = os.path.getsize(db_path) / 1024 if os.path.exists(db_path) else 0.0
+        
+        # Tamaño de expedientes
+        total_files = 0
+        exp_size_bytes = 0
+        folios_list = []
+        if os.path.exists(database.EXPEDIENTES_DIR):
+            for root, dirs, files in os.walk(database.EXPEDIENTES_DIR):
+                for f in files:
+                    fp = os.path.join(root, f)
+                    if os.path.exists(fp):
+                        exp_size_bytes += os.path.getsize(fp)
+                        total_files += 1
+                for d in dirs:
+                    if d.startswith("REP-ESP-"):
+                        folios_list.append(d)
+        
+        exp_size_mb = exp_size_bytes / (1024 * 1024)
+        
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric("📁 Tamaño Base de Datos (SQLite)", f"{db_size_kb:.2f} KB")
+        with col_m2:
+            st.metric("📂 Carpeta de Expedientes (Local)", f"{exp_size_mb:.2f} MB")
+        with col_m3:
+            st.metric("📄 Total de Archivos Almacenados", f"{total_files} archivos")
+            
+        st.write("---")
+        
+        # Enlaces a GitHub
+        st.write("### 🌐 Carpetas de Almacenamiento en GitHub (Respaldo en la Nube)")
+        st.markdown("""
+        Los expedientes generados en este sistema se respaldan de manera automática en el repositorio central de GitHub.
+        Puede consultar y auditar la estructura de archivos en la nube utilizando los siguientes enlaces directos:
+        """)
+        
+        col_gh1, col_gh2 = st.columns(2)
+        with col_gh1:
+            st.link_button(
+                "📂 Ver Carpeta de Expedientes en GitHub",
+                "https://github.com/jesusalbertomoraleslopez-byte/control-espesores/tree/main/expedientes",
+                use_container_width=True
+            )
+        with col_gh2:
+            st.link_button(
+                "💻 Ver Repositorio Principal del Sistema",
+                "https://github.com/jesusalbertomoraleslopez-byte/control-espesores",
+                use_container_width=True
+            )
+            
+        st.write("---")
+        
+        # Listado de carpetas físicas locales
+        st.write("### 📂 Carpetas Físicas Detectadas (Local):")
+        if not folios_list:
+            st.info("No se detectaron carpetas de expedientes locales.")
+        else:
+            st.write(f"Carpetas registradas en `{database.EXPEDIENTES_DIR}`:")
+            st.dataframe(pd.DataFrame(sorted(folios_list), columns=["Folio (Carpeta Física)"]), use_container_width=True, hide_index=True)
+            
+        st.write("---")
+        
+        # Acción de limpieza: Limpiar Base de Datos (Barrer registros)
+        st.write("### 🗑️ Depuración Estricta de Datos")
+        st.markdown("⚠️ **ADVERTENCIA:** Al limpiar la base de datos se eliminarán **todos los registros de expedientes** guardados y se limpiará el catálogo de proveedores. Esta acción **no se puede deshacer**.")
+        
+        conf_limpieza = st.checkbox("Confirmo que deseo barrer la base de datos de expedientes y registros por completo.", key="check_clean_db_mantenimiento")
+        if conf_limpieza:
+            if st.button("BARRER TODOS LOS REGISTROS Y EXPEDIENTES", type="primary", use_container_width=True, key="btn_clean_db_mantenimiento"):
+                with st.spinner("Limpiando registros de SQLite..."):
+                    database.limpiar_base_datos()
+                st.success("🎉 Base de datos de SQLite limpiada con éxito. Los archivos físicos también se desvincularon.")
+                st.rerun()
 
