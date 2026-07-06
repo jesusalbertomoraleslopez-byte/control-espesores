@@ -390,7 +390,7 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 
 st.sidebar.write("---")
-opcion_menu = st.sidebar.radio("Módulos del Sistema:", ["📊 Suite de Análisis", "🔍 Historial de Reportes"])
+opcion_menu = st.sidebar.radio("Módulos del Sistema:", ["📊 Suite de Análisis", "🔍 Historial de Reportes", "🏢 Catálogo de Proveedores"])
 
 st.sidebar.write("---")
 st.sidebar.subheader("🛠️ Parámetros de Control")
@@ -597,7 +597,12 @@ if opcion_menu == "📊 Suite de Análisis":
                 
                 col_h1, col_h2 = st.columns(2)
                 with col_h1:
-                    prov_input = st.text_input("🏢 Proveedor Ofertante:", value="", placeholder="Ej. Ternium, Nucor, AHMSA...", key="prov_input_h")
+                    listado_proveedores = database.listar_proveedores_nombres()
+                    if listado_proveedores:
+                        prov_input = st.selectbox("🏢 Proveedor Ofertante:", listado_proveedores, key="prov_input_h")
+                    else:
+                        st.warning("⚠️ No hay proveedores registrados. Registre uno primero en el Catálogo de Proveedores.")
+                        prov_input = ""
                 with col_h2:
                     cert_info_input = st.text_input("📑 Información del Certificado (ID/Número):", value="", placeholder="Ej. Certificado N° TX-98810", key="cert_info_input_h")
                     
@@ -807,4 +812,77 @@ elif opcion_menu == "🔍 Historial de Reportes":
                     st.image(correo_path, use_container_width=True)
                 else:
                     st.warning("⚠️ Captura del correo de compras no encontrada.")
+
+elif opcion_menu == "🏢 Catálogo de Proveedores":
+    import database
+    st.title("🏢 Catálogo de Proveedores de Materia Prima")
+    st.markdown("Registre, consulte y administre los proveedores oficiales de la planta.")
+    
+    # 1. Crear Nuevo Proveedor
+    with st.expander("➕ Registrar Nuevo Proveedor", expanded=False):
+        with st.form("form_registro_proveedor", clear_on_submit=True):
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                nombre_prov = st.text_input("Nombre del Proveedor (Obligatorio):", placeholder="Ej. Ternium, Nucor, etc.")
+                contacto_prov = st.text_input("Nombre del Contacto:", placeholder="Ej. Ing. Jesús Morales")
+            with col_p2:
+                tel_prov = st.text_input("Teléfono de Contacto:", placeholder="Ej. 81-1234-5678")
+                correo_prov = st.text_input("Correo Electrónico:", placeholder="Ej. contacto@proveedor.com")
+                
+            btn_registrar = st.form_submit_button("Guardar Proveedor")
+            
+            if btn_registrar:
+                if not nombre_prov.strip():
+                    st.error("❌ El nombre del proveedor es obligatorio.")
+                else:
+                    success = database.crear_proveedor(
+                        nombre=nombre_prov.strip(),
+                        contacto=contacto_prov.strip(),
+                        telefono=tel_prov.strip(),
+                        correo=correo_prov.strip()
+                    )
+                    if success:
+                        st.success(f"✅ Proveedor **{nombre_prov.strip()}** registrado exitosamente.")
+                        st.rerun()
+                    else:
+                        st.error("❌ Error: Ya existe un proveedor registrado con ese nombre.")
+                        
+    # 2. Listado de Proveedores Registrados
+    st.write("### 📋 Proveedores Oficiales Registrados")
+    listado = database.listar_proveedores()
+    
+    if not listado:
+        st.info("No hay proveedores registrados en el catálogo.")
+    else:
+        df_provs = pd.DataFrame(listado)
+        df_provs_view = df_provs[["id", "nombre", "contacto", "telefono", "correo", "fecha_registro"]].rename(columns={
+            "id": "ID",
+            "nombre": "Nombre del Proveedor",
+            "contacto": "Contacto",
+            "telefono": "Teléfono",
+            "correo": "Correo Electrónico",
+            "fecha_registro": "Fecha de Registro"
+        })
+        st.dataframe(df_provs_view, use_container_width=True, hide_index=True)
+        
+        # 3. Eliminar Proveedor
+        st.write("---")
+        st.write("### 🗑️ Eliminar Proveedor del Catálogo")
+        prov_a_eliminar = st.selectbox(
+            "Seleccione el proveedor que desea eliminar:",
+            options=df_provs["nombre"].tolist(),
+            key="selectbox_eliminar_prov"
+        )
+        
+        if prov_a_eliminar:
+            row_prov = df_provs[df_provs["nombre"] == prov_a_eliminar].iloc[0]
+            
+            # Confirmación
+            confirm_eliminar = st.checkbox(f"Confirmo que deseo eliminar definitivamente a **{prov_a_eliminar}** del sistema.", key="check_eliminar_prov")
+            if confirm_eliminar:
+                btn_eliminar = st.button("Eliminar Proveedor", type="primary", key="btn_eliminar_prov")
+                if btn_eliminar:
+                    database.eliminar_proveedor(row_prov["id"])
+                    st.success(f"✅ Proveedor **{prov_a_eliminar}** eliminado con éxito.")
+                    st.rerun()
 

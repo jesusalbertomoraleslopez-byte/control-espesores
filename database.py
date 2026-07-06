@@ -13,7 +13,7 @@ def get_connection():
     return conn
 
 def init_db():
-    """Inicializa la base de datos y crea la tabla de historial si no existe."""
+    """Inicializa la base de datos y crea la tabla de historial y de proveedores si no existen."""
     os.makedirs(EXPEDIENTES_DIR, exist_ok=True)
     conn = get_connection()
     cursor = conn.cursor()
@@ -35,6 +35,24 @@ def init_db():
         fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS proveedores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT UNIQUE NOT NULL,
+        contacto TEXT,
+        telefono TEXT,
+        correo TEXT,
+        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    
+    # Insertar proveedores por defecto si la tabla está vacía
+    cursor.execute("SELECT COUNT(*) as cnt FROM proveedores")
+    if cursor.fetchone()["cnt"] == 0:
+        cursor.execute("INSERT INTO proveedores (nombre, contacto, correo) VALUES ('Ternium', 'Jesús Morales', 'jmorales@ternium.com')")
+        cursor.execute("INSERT INTO proveedores (nombre, contacto, correo) VALUES ('Nucor', 'Brenda Martínez', 'brenda.martinez@nucor.com')")
+        cursor.execute("INSERT INTO proveedores (nombre, contacto, correo) VALUES ('AHMSA', 'Carlos Sánchez', 'csanchez@ahmsa.com')")
+        
     conn.commit()
     conn.close()
 
@@ -108,6 +126,48 @@ def generar_siguiente_folio():
         siguiente = 1
         
     return f"REP-ESP-{year}-{siguiente:04d}"
+
+def crear_proveedor(nombre, contacto="", telefono="", correo=""):
+    """Crea un nuevo proveedor en la base de datos."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+        INSERT INTO proveedores (nombre, contacto, telefono, correo)
+        VALUES (?, ?, ?, ?)
+        """, (nombre, contacto, telefono, correo))
+        conn.commit()
+        success = True
+    except sqlite3.IntegrityError:
+        success = False
+    conn.close()
+    return success
+
+def listar_proveedores():
+    """Retorna una lista de diccionarios con todos los proveedores registrados."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM proveedores ORDER BY nombre")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def listar_proveedores_nombres():
+    """Retorna una lista de nombres de todos los proveedores registrados."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT nombre FROM proveedores ORDER BY nombre")
+    rows = cursor.fetchall()
+    conn.close()
+    return [r["nombre"] for r in rows]
+
+def eliminar_proveedor(id_prov):
+    """Elimina un proveedor por su ID."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM proveedores WHERE id = ?", (id_prov,))
+    conn.commit()
+    conn.close()
 
 # Inicializar al importar para asegurar que la tabla existe
 init_db()
