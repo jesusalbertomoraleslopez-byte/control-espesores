@@ -1130,6 +1130,78 @@ elif opcion_menu == "🔍 Historial de Reportes":
                         "m: +52 871 7954493"
                     )
                     
+                    # Construir versión HTML con colores para el envío directo (SMTP)
+                    body_html = f"""<html>
+<body style="font-family: Arial, sans-serif; color: #111111; line-height: 1.6;">
+    <h2 style="color: #EC2024; border-bottom: 2px solid #EC2024; padding-bottom: 5px; margin-bottom: 15px; font-size: 18px;">
+        REPORTE TÉCNICO DE INSPECCIÓN Y EVALUACIÓN DE SUMINISTRO
+    </h2>
+    <p>Estimado Departamento de Compras,</p>
+    <p>
+        Se comparte el <b>Dictamen Técnico</b> correspondiente a la evaluación técnica de espesores del proveedor 
+        <strong>{rec_sel['proveedor']}</strong> bajo el Folio Oficial <strong>{rec_sel['folio']}</strong>.
+    </p>
+    
+    <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+        <thead>
+            <tr style="background-color: #111111; color: #FFFFFF;">
+                <th colspan="2" style="padding: 10px; text-align: left; border: 1px solid #D2D3D5;">
+                    📋 RESUMEN DE INSPECCIÓN Y DICTAMEN
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA; width: 40%;"><b>Proveedor Ofertante:</b></td>
+                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['proveedor']}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Certificado / Lote:</b></td>
+                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['certificado_info']}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Total Rollos Analizados:</b></td>
+                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['total_rollos']}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Rollos Aceptados:</b></td>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; color: green; font-weight: bold;">{rec_sel['aceptados']}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Rollos Rechazados:</b></td>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; color: {'red' if rec_sel['rechazados'] > 0 else 'green'}; font-weight: bold;">{rec_sel['rechazados']}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Riesgo Promedio del Suministro:</b></td>
+                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['riesgo_promedio']:.2f}%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="background-color: #F1F5F9; border-left: 5px solid #EC2024; padding: 15px; margin: 20px 0; max-width: 580px; font-size: 14px;">
+        <h4 style="margin-top: 0; color: #111111; margin-bottom: 5px;">⚖️ DICTAMEN TÉCNICO SUGERIDO</h4>
+        <p style="margin: 0;">
+            <b>Veredicto:</b> {veredicto}<br/>
+            <b>Sugerencia:</b> {dictamen_sugerido}
+        </p>
+    </div>
+
+    <p style="color: #64748B; font-size: 12px; font-style: italic; margin-top: 20px;">
+        * Nota: Los documentos correspondientes (Reporte Técnico y Certificado de Calidad original) se encuentran adjuntos a este correo en formato PDF.
+    </p>
+
+    <hr style="border: 0; border-top: 1px solid #D2D3D5; margin: 30px 0 20px 0; max-width: 600px;" />
+    
+    <p style="margin: 0; font-size: 14px; font-weight: bold; color: #111111;">Atentamente,</p>
+    <p style="margin: 5px 0 0 0; font-size: 14px; color: #EC2024; font-weight: bold;">Ing. Jesús A. Morales | Director de Maquinados</p>
+    <p style="margin: 5px 0 0 0; font-size: 12px; color: #64748B; line-height: 1.4;">
+        <b>a:</b> Industria Sigrama | C. Juan Escutia # 50, Col. Abastos | Torreón, Coah.<br/>
+        <b>w:</b> <a href="http://www.sigrama.com.mx" style="color: #EC2024; text-decoration: none;">www.sigrama.com.mx</a><br/>
+        <b>m:</b> +52 871 7954493
+    </p>
+</body>
+</html>"""
+                    
                     # Construir URL de mailto con el parámetro de copia CC
                     mailto_url = f"mailto:{dest_to}?cc={dest_cc}&subject={urllib.parse.quote(subj)}&body={urllib.parse.quote(body_txt)}"
                     st.link_button("📧 Redactar en Outlook / Cliente Local", mailto_url, use_container_width=True)
@@ -1140,13 +1212,14 @@ elif opcion_menu == "🔍 Historial de Reportes":
                                 rep_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
                                 cert_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_certificado"])
                                 attach_paths = [rep_path_abs, cert_path_abs]
-                                success = database.enviar_correo_smtp(dest_to, dest_cc, subj, body_txt, attach_paths)
+                                success = database.enviar_correo_smtp(dest_to, dest_cc, subj, body_html, attach_paths)
                                 if success:
                                     st.success(f"🎉 ¡El reporte y certificado han sido enviados a {dest_to} con copia a {dest_cc}!")
                                 else:
                                     st.error("❌ Ocurrió un error al enviar el correo. Verifique las credenciales SMTP.")
                     else:
-                        st.info("💡 Para habilitar el envío automático directo con PDF adjunto desde el servidor, configure sus credenciales SMTP en los Secrets de Streamlit (SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD).")
+                        st.info("💡 **Nota de Envío Local (Outlook):** Recuerde que debe arrastrar manualmente los PDFs (Reporte y Certificado) a la ventana de Outlook que se abre. Por seguridad del navegador, no es posible auto-adjuntar archivos locales. \n\n"
+                                "🔧 **Para automatizar el envío (Adjuntos y Colores automáticos):** Configure sus credenciales de correo en los Secrets de Streamlit (SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD) para activar el botón de envío directo desde el servidor.")
                     
             with col_d2:
                 # Mostrar imagen del correo de compras
