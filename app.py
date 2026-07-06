@@ -5,7 +5,9 @@ import plotly.graph_objects as go
 import scipy.stats as stats
 from datetime import datetime
 import io
+import importlib
 import database
+importlib.reload(database)
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -597,6 +599,7 @@ if opcion_menu == "📊 Suite de Análisis":
                 
                 col_h1, col_h2 = st.columns(2)
                 with col_h1:
+                    st.write(f"DEBUG DB PATH: {getattr(database, '__file__', 'No file')}")
                     listado_proveedores = database.listar_proveedores_nombres()
                     if listado_proveedores:
                         prov_input = st.selectbox("🏢 Proveedor Ofertante:", listado_proveedores, key="prov_input_h")
@@ -814,7 +817,7 @@ elif opcion_menu == "🔍 Historial de Reportes":
                     st.warning("⚠️ Captura del correo de compras no encontrada.")
 
 elif opcion_menu == "🏢 Catálogo de Proveedores":
-    import database
+    importlib.reload(database)
     st.title("🏢 Catálogo de Proveedores de Materia Prima")
     st.markdown("Registre, consulte y administre los proveedores oficiales de la planta.")
     
