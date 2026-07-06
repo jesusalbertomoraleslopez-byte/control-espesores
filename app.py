@@ -727,7 +727,7 @@ if opcion_menu == "📊 Suite de Análisis":
                     
                 col_f1, col_f2 = st.columns(2)
                 with col_f1:
-                    cert_file_input = st.file_uploader("📂 Archivo de Certificado de Calidad (PDF)", type=["pdf"], key="cert_file_h")
+                    cert_files_input = st.file_uploader("📂 Archivo(s) de Certificado de Calidad (PDFs)", type=["pdf"], accept_multiple_files=True, key="cert_files_h")
                 with col_f2:
                     st.write("📧 Captura del Correo de Compras (Imagen)")
                     
@@ -763,30 +763,42 @@ if opcion_menu == "📊 Suite de Análisis":
                 if btn_save:
                     if not prov_input.strip():
                         st.error("❌ El nombre del proveedor es obligatorio.")
-                    elif not cert_file_input:
-                        st.error("❌ El archivo del Certificado de Calidad en formato PDF es obligatorio.")
+                    elif not cert_files_input:
+                        st.error("❌ Debe cargar al menos un archivo de Certificado de Calidad en formato PDF.")
                     elif email_img_data is None:
                         st.error("❌ La captura de pantalla del correo de Compras es obligatoria (cárguela por archivo o péguela desde el portapapeles).")
                     else:
-                        with st.spinner("Guardando registro y archivos en el expediente..."):
+                        with st.spinner("Guardando registro y consolidando certificados..."):
                             import database
+                            import fitz
                             
                             # 1. Generar Folio
                             nuevo_folio = database.generar_siguiente_folio()
                             folder_exp = os.path.join(database.EXPEDIENTES_DIR, nuevo_folio)
                             os.makedirs(folder_exp, exist_ok=True)
                             
-                            # 2. Guardar archivos cargados
-                            cert_ext = os.path.splitext(cert_file_input.name)[1]
+                            # 2. Consolidar múltiples PDFs en uno solo
+                            try:
+                                merged_pdf = fitz.open()
+                                for cert_file in cert_files_input:
+                                    doc = fitz.open(stream=cert_file.read(), filetype="pdf")
+                                    merged_pdf.insert_pdf(doc)
+                                    cert_file.seek(0)
+                                cert_pdf_bytes = merged_pdf.tobytes()
+                                merged_pdf.close()
+                            except Exception as pdf_ex:
+                                st.error(f"❌ Error al consolidar los certificados PDF: {pdf_ex}")
+                                st.stop()
+                            
                             email_ext = ".png" if email_img_name == "Captura_Portapapeles.png" else os.path.splitext(email_img_name)[1]
                             
-                            ruta_cert_dest = os.path.join(folder_exp, f"{nuevo_folio} - CERTIFICADO{cert_ext}")
+                            ruta_cert_dest = os.path.join(folder_exp, f"{nuevo_folio} - CERTIFICADO.pdf")
                             ruta_correo_dest = os.path.join(folder_exp, f"{nuevo_folio} - IMAGEN{email_ext}")
                             ruta_reporte_dest = os.path.join(folder_exp, f"{nuevo_folio} - REPORTE.pdf")
                             ruta_excel_dest = os.path.join(folder_exp, f"{nuevo_folio} - DATOS.xlsx")
                             
                             with open(ruta_cert_dest, "wb") as f_out:
-                                f_out.write(cert_file_input.read())
+                                f_out.write(cert_pdf_bytes)
                             with open(ruta_correo_dest, "wb") as f_out:
                                 f_out.write(email_img_data)
                             if "raw_excel_bytes" in st.session_state:
@@ -797,7 +809,6 @@ if opcion_menu == "📊 Suite de Análisis":
                             contact_info = "N/D"
                             for p in database.listar_proveedores():
                                 if p["nombre"] == prov_input:
-                                    # Formatear la cadena de contacto omitiendo partes vacías
                                     parts = [p['contacto']]
                                     if p['correo']: parts.append(p['correo'])
                                     if p['telefono']: parts.append(p['telefono'])
@@ -813,7 +824,7 @@ if opcion_menu == "📊 Suite de Análisis":
                             }
                                 
                             # 3. Generar y guardar PDF de reporte técnico
-                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_file_input.getvalue(), email_img_data, df_raw=st.session_state.get("df_raw_excel"), meta_info=meta_info)
+                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_pdf_bytes, email_img_data, df_raw=st.session_state.get("df_raw_excel"), meta_info=meta_info)
                             with open(ruta_reporte_dest, "wb") as f_out:
                                 f_out.write(report_pdf_bytes.getvalue())
                                 
