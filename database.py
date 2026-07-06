@@ -242,5 +242,47 @@ def push_to_github():
         print(f"Error al sincronizar con GitHub: {e}")
         return False
 
+def enviar_correo_smtp(recipient, subject, body, attachment_path=None):
+    """Envía un correo electrónico con un archivo adjunto usando credenciales SMTP en st.secrets."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+    import streamlit as st
+    import os
+    
+    try:
+        smtp_server = st.secrets["SMTP_SERVER"]
+        smtp_port = int(st.secrets["SMTP_PORT"])
+        smtp_user = st.secrets["SMTP_USER"]
+        smtp_password = st.secrets["SMTP_PASSWORD"]
+        
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = recipient
+        msg['Subject'] = subject
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        if attachment_path and os.path.exists(attachment_path):
+            filename = os.path.basename(attachment_path)
+            with open(attachment_path, "rb") as attachment:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(attachment.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+                msg.attach(part)
+                
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Error al enviar correo SMTP: {e}")
+        return False
+
 # Inicializar al importar para asegurar que la tabla existe
 init_db()

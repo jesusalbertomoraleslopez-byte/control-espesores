@@ -1068,6 +1068,32 @@ elif opcion_menu == "🔍 Historial de Reportes":
                             except Exception as ex:
                                 st.error(f"❌ Error al regenerar: {ex}")
                     
+                    st.write("##### Enviar por Correo Electrónico:")
+                    import urllib.parse
+                    subj = f"SIGRAMA - Reporte de Control de Suministro - Folio {rec_sel['folio']}"
+                    body_txt = f"Estimado Proveedor,\n\nSe ha realizado la evaluación técnica de espesores correspondiente al suministro bajo el Folio Oficial {rec_sel['folio']}.\n\nResumen de la inspección:\n- Total de Rollos Analizados: {rec_sel['total_rollos']}\n- Aceptados: {rec_sel['aceptados']}\n- Rechazados: {rec_sel['rechazados']}\n- Nivel de Riesgo Promedio: {rec_sel['riesgo_promedio']:.2f}%\n\nAdjunto a este correo encontrará el Reporte Técnico formal correspondiente.\n\nAtentamente,\nIngeniería de Calidad\nIndustria SIGRAMA"
+                    
+                    supplier_email = ""
+                    for p in database.listar_proveedores():
+                        if p["nombre"] == rec_sel["proveedor"]:
+                            supplier_email = p["correo"]
+                            break
+                            
+                    mailto_url = f"mailto:{supplier_email}?subject={urllib.parse.quote(subj)}&body={urllib.parse.quote(body_txt)}"
+                    st.link_button("📧 Redactar en Outlook / Cliente Local", mailto_url, use_container_width=True)
+                    
+                    if "SMTP_SERVER" in st.secrets:
+                        if st.button("✉️ Enviar Reporte por Correo Directo", key=f"btn_send_smtp_{rec_sel['folio']}", use_container_width=True):
+                            with st.spinner("Enviando correo al proveedor..."):
+                                rep_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
+                                success = database.enviar_correo_smtp(supplier_email, subj, body_txt, rep_path_abs)
+                                if success:
+                                    st.success("🎉 ¡El reporte ha sido enviado directamente al correo del proveedor!")
+                                else:
+                                    st.error("❌ Ocurrió un error al enviar el correo. Verifique las credenciales SMTP.")
+                    else:
+                        st.info("💡 Para habilitar el envío automático directo con PDF adjunto desde el servidor, configure sus credenciales SMTP en los Secrets de Streamlit (SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD).")
+                    
             with col_d2:
                 # Mostrar imagen del correo de compras
                 correo_path = os.path.join(database.BASE_DIR, rec_sel["ruta_correo"])
