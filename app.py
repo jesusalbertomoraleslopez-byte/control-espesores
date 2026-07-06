@@ -134,16 +134,17 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, 
         meta_data = [
             [Paragraph("<b>Folio Oficial:</b>", m_st), Paragraph(meta_info.get("Folio", "Borrador"), m_st), Paragraph("<b>Fecha de Análisis:</b>", m_st), Paragraph(meta_info.get("Fecha", datetime.now().strftime('%d/%m/%Y %H:%M')), m_st)],
             [Paragraph("<b>Proveedor:</b>", m_st), Paragraph(meta_info.get("Proveedor", "N/D"), m_st), Paragraph("<b>Contacto (Email/Tel):</b>", m_st), Paragraph(meta_info.get("Contacto", "N/D"), m_st)],
-            [Paragraph("<b>Certificado (Lote/ID):</b>", m_st), Paragraph(meta_info.get("Certificado", "N/D"), m_st), Paragraph("<b>Tolerancia Base:</b>", m_st), Paragraph(f"±{tol_p:.3f}\"", m_st)]
+            [Paragraph("<b>Certificado (Lote/ID):</b>", m_st), Paragraph(meta_info.get("Certificado", "N/D"), m_st), "", ""]
         ]
         t_meta = Table(meta_data, colWidths=[110, 180, 110, 120])
         t_meta.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8F9FA')),
-            ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#F8F9FA')),
+            ('BACKGROUND', (2,0), (2,1), colors.HexColor('#F8F9FA')),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3')),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('SPAN', (1,2), (3,2))
         ]))
         story.append(t_meta)
     else:
