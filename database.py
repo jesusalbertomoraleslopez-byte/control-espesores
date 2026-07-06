@@ -265,7 +265,10 @@ def enviar_correo_smtp(recipient, cc_recipients, subject, body, attachment_paths
             msg['Cc'] = cc_recipients
         msg['Subject'] = subject
         
-        msg.attach(MIMEText(body, 'plain'))
+        if "<html>" in body.lower():
+            msg.attach(MIMEText(body, 'html'))
+        else:
+            msg.attach(MIMEText(body, 'plain'))
         
         if attachment_paths:
             for path in attachment_paths:
