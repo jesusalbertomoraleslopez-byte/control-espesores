@@ -176,6 +176,11 @@ def limpiar_base_datos():
     cursor = conn.cursor()
     cursor.execute("DELETE FROM historial_reportes")
     cursor.execute("DELETE FROM proveedores")
+    
+    # Reiniciar los contadores de IDs automáticos (para que vuelvan a empezar en 1)
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='historial_reportes'")
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='proveedores'")
+    
     conn.commit()
     conn.close()
     
