@@ -105,7 +105,7 @@ def generar_excel_plantilla():
             worksheet.column_dimensions[col_letter].width = max(max_len + 4, 16)
             
     return output.getvalue()
-def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None):
+def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, df_raw=None):
     """Genera la estructura del documento técnico formal incorporando los nuevos formatos de color y títulos, y miniaturas."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -260,6 +260,30 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None):
             t_docs.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'TOP')]))
             story.append(KeepTogether(t_docs))
             
+        story.append(Spacer(1, 15))
+        
+    if df_raw is not None and not df_raw.empty:
+        story.append(PageBreak())
+        story.append(Paragraph("Anexo: Base de Datos Original (Importación de Excel)", h2_st))
+        
+        # Build table data from df_raw
+        raw_headers = [Paragraph(str(c).replace("_", " "), h_style) for c in df_raw.columns]
+        raw_data = [raw_headers]
+        for _, row in df_raw.iterrows():
+            row_data = [Paragraph(str(val), c_style) for val in row]
+            raw_data.append(row_data)
+            
+        num_cols = len(df_raw.columns)
+        col_w = 520 / num_cols if num_cols > 0 else 100
+        
+        t_raw = Table(raw_data, colWidths=[col_w]*num_cols, repeatRows=1)
+        t_raw.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#111111')), 
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3'))
+        ]))
+        story.append(t_raw)
         story.append(Spacer(1, 15))
 
     f_st = ParagraphStyle('FText', fontName='Helvetica', fontSize=10, alignment=1, spaceAfter=2)
@@ -492,6 +516,8 @@ if opcion_menu == "📊 Suite de Análisis":
     if archivo_cargado is not None:
         try:
             df = pd.read_excel(archivo_cargado)
+            st.session_state["df_raw_excel"] = df.copy()
+            st.session_state["raw_excel_bytes"] = archivo_cargado.getvalue()
             res = []
             
             # Buscar si existe columna de Tolerancia en el Excel
@@ -640,10 +666,10 @@ if opcion_menu == "📊 Suite de Análisis":
                 
                 # --- COMPONENTE DE ACCIÓN FINAL: BOTÓN DE DESCARGA PDF ---
                 st.subheader("📄 Entregables de Ingeniería de Calidad")
-                pdf_buffer = crear_pdf_formal(df_datos_cargados, tol_proveedor)
+                pdf_bytes = crear_pdf_formal(st.session_state["df_calculado"], tol_proveedor, df_raw=st.session_state.get("df_raw_excel"))
                 st.download_button(
-                    label="📥 Descargar Reporte PDF de Control Corporativo",
-                    data=pdf_buffer,
+                    label="📄 DESCARGAR REPORTE PDF DE CONTROL CORPORATIVO",
+                    data=pdf_bytes.getvalue(),
                     file_name=f"Reporte_Riesgo_Espesores_{datetime.now().strftime('%H%M')}.pdf",
                     mime="application/pdf",
                     use_container_width=True
@@ -724,14 +750,18 @@ if opcion_menu == "📊 Suite de Análisis":
                             ruta_cert_dest = os.path.join(folder_exp, f"{nuevo_folio} - CERTIFICADO{cert_ext}")
                             ruta_correo_dest = os.path.join(folder_exp, f"{nuevo_folio} - IMAGEN{email_ext}")
                             ruta_reporte_dest = os.path.join(folder_exp, f"{nuevo_folio} - REPORTE.pdf")
+                            ruta_excel_dest = os.path.join(folder_exp, f"{nuevo_folio} - DATOS.xlsx")
                             
                             with open(ruta_cert_dest, "wb") as f_out:
                                 f_out.write(cert_file_input.read())
                             with open(ruta_correo_dest, "wb") as f_out:
                                 f_out.write(email_img_data)
+                            if "raw_excel_bytes" in st.session_state:
+                                with open(ruta_excel_dest, "wb") as f_out:
+                                    f_out.write(st.session_state["raw_excel_bytes"])
                                 
                             # 3. Generar y guardar PDF de reporte técnico
-                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_file_input.getvalue(), email_img_data)
+                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_file_input.getvalue(), email_img_data, df_raw=st.session_state.get("df_raw_excel"))
                             with open(ruta_reporte_dest, "wb") as f_out:
                                 f_out.write(report_pdf_bytes.getvalue())
                                 
@@ -866,6 +896,19 @@ elif opcion_menu == "🔍 Historial de Reportes":
                         )
                 else:
                     st.warning("⚠️ Archivo de certificado no encontrado.")
+                    
+                # Datos Excel Originales
+                excel_path = os.path.join(database.BASE_DIR, "expedientes", rec_sel["folio"], f"{rec_sel['folio']} - DATOS.xlsx")
+                if os.path.exists(excel_path):
+                    with open(excel_path, "rb") as f_xls:
+                        st.download_button(
+                            label="📊 Descargar Datos Base (Excel)",
+                            data=f_xls.read(),
+                            file_name=os.path.basename(excel_path),
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                            key=f"btn_dl_xls_{rec_sel['folio']}"
+                        )
                     
             with col_d2:
                 # Mostrar imagen del correo de compras
