@@ -112,14 +112,24 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None):
     story = []
     styles = getSampleStyleSheet()
     
-    t_st = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#EC2024'), spaceAfter=12)
-    m_st = ParagraphStyle('DocMeta', fontName='Helvetica', fontSize=10, textColor=colors.HexColor('#444'), spaceAfter=4)
-    h2_st = ParagraphStyle('SectionH2', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#EC2024'), spaceBefore=12, spaceAfter=6)
-    h3_st = ParagraphStyle('SectionH3', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#222222'), spaceBefore=8, spaceAfter=4)
+    t_st = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=colors.HexColor('#EC2024'), spaceAfter=4, alignment=2)
+    m_st = ParagraphStyle('DocMeta', fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#111111'), spaceAfter=2)
+    h2_st = ParagraphStyle('SectionH2', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#111111'), spaceBefore=10, spaceAfter=4, backColor=colors.HexColor('#F1F5F9'), borderPadding=6)
+    h3_st = ParagraphStyle('SectionH3', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#EC2024'), spaceBefore=6, spaceAfter=4, alignment=1)
     h_style = ParagraphStyle('HStyle', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=1)
     c_style = ParagraphStyle('CStyle', fontName='Helvetica', fontSize=9, alignment=1)
     
-    story.append(Paragraph("SIGRAMA PLANTA METALES", t_st))
+    logo_path = os.path.join(database.BASE_DIR, "logo_sigrama.png")
+    if os.path.exists(logo_path):
+        logo = RLImage(logo_path, width=160, height=45, kind='proportional')
+        header_data = [[logo, Paragraph("REPORTE TÉCNICO DE INGENIERÍA<br/><font size=10 color='#111111'>EVALUACIÓN DE SUMINISTRO</font>", t_st)]]
+        t_head = Table(header_data, colWidths=[180, 340])
+        t_head.setStyle(TableStyle([('ALIGN', (0,0), (0,0), 'LEFT'), ('ALIGN', (1,0), (1,0), 'RIGHT'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LINEBELOW', (0,0), (-1,-1), 1.5, colors.HexColor('#EC2024'))]))
+        story.append(t_head)
+        story.append(Spacer(1, 10))
+    else:
+        story.append(Paragraph("SIGRAMA PLANTA METALES", t_st))
+        
     story.append(Paragraph("<b>Documento:</b> Reporte Técnico de Ingeniería de Calidad y Evaluación de Suministro", m_st))
     story.append(Paragraph(f"<b>Fecha de Análisis:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", m_st))
     story.append(Paragraph(f"<b>Parámetro Comercial:</b> Desviación Ofertada por Proveedor en ±{tol_p:.3f}\"", m_st))
@@ -172,7 +182,7 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None):
         story.append(Spacer(1, 8))
         
     # 3. Distribución estadística de Gauss por sección aislada
-    story.append(PageBreak())
+    story.append(Spacer(1, 10))
     story.append(Paragraph("3. Análisis de Distribución Probabilística por Especificación Técnica", h2_st))
     
     sigma_p = tol_p / 3.0
@@ -212,37 +222,44 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None):
     story.append(Spacer(1, 15))
     
     if cert_file_data or email_img_data:
-        story.append(PageBreak())
+        story.append(Spacer(1, 15))
         story.append(Paragraph("4. Documentos de Respaldo", h2_st))
+        
+        row_titles = []
+        row_images = []
         
         # 4.1 Certificado
         if cert_file_data:
-            story.append(Paragraph("4.1. Certificado de Calidad (Miniatura)", h3_st))
+            row_titles.append(Paragraph("4.1. Certificado de Calidad", h3_st))
             try:
                 import fitz
                 doc_pdf = fitz.open(stream=cert_file_data, filetype="pdf")
                 page = doc_pdf.load_page(0)
                 pix = page.get_pixmap(matrix=fitz.Matrix(0.5, 0.5))
-                img_bytes = pix.tobytes("png")
-                img_buffer = io.BytesIO(img_bytes)
-                cert_img = RLImage(img_buffer, width=400, height=400, kind='proportional')
-                cert_img.hAlign = 'CENTER'
-                story.append(cert_img)
+                img_buffer = io.BytesIO(pix.tobytes("png"))
+                cert_img = RLImage(img_buffer, width=250, height=250, kind='proportional')
+                row_images.append(cert_img)
             except Exception as e:
-                story.append(Paragraph(f"<i>No se pudo generar miniatura del PDF: {str(e)}</i>", c_style))
-            story.append(Spacer(1, 15))
+                row_images.append(Paragraph(f"<i>Error: {e}</i>", c_style))
             
         # 4.2 Correo
         if email_img_data:
-            story.append(Paragraph("4.2. Captura del Correo de Compras", h3_st))
+            row_titles.append(Paragraph("4.2. Correo de Compras", h3_st))
             try:
                 img_buffer = io.BytesIO(email_img_data)
-                email_img = RLImage(img_buffer, width=400, height=350, kind='proportional')
-                email_img.hAlign = 'CENTER'
-                story.append(email_img)
+                email_img = RLImage(img_buffer, width=250, height=250, kind='proportional')
+                row_images.append(email_img)
             except Exception as e:
-                story.append(Paragraph(f"<i>No se pudo procesar la imagen del correo: {str(e)}</i>", c_style))
+                row_images.append(Paragraph(f"<i>Error: {e}</i>", c_style))
                 
+        if row_titles:
+            if len(row_titles) == 2:
+                t_docs = Table([row_titles, row_images], colWidths=[260, 260])
+            else:
+                t_docs = Table([row_titles, row_images], colWidths=[520])
+            t_docs.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'TOP')]))
+            story.append(KeepTogether(t_docs))
+            
         story.append(Spacer(1, 15))
 
     f_st = ParagraphStyle('FText', fontName='Helvetica', fontSize=10, alignment=1, spaceAfter=2)
