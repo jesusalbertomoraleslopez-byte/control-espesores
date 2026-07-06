@@ -585,7 +585,7 @@ if opcion_menu == "1. 📊 Dashboard de Control":
     st.markdown("Estadísticas del control de calidad e inspecciones de espesores de materiales.")
     
     import database
-    reps = database.listar_reportes()
+    reps = database.obtener_reportes()
     
     if not reps:
         st.info("💡 Aún no hay expedientes guardados en la base de datos. Los indicadores se mostrarán cuando guarde su primer análisis.")
