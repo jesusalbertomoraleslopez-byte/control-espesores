@@ -684,7 +684,16 @@ if opcion_menu == "📊 Suite de Análisis":
                 
                 # --- COMPONENTE DE ACCIÓN FINAL: BOTÓN DE DESCARGA PDF ---
                 st.subheader("📄 Entregables de Ingeniería de Calidad")
-                pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, df_raw=st.session_state.get("df_raw_excel"))
+                
+                draft_meta = {
+                    "Folio": "BORRADOR (No Guardado)",
+                    "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "Proveedor": "Pendiente (Se asigna al guardar)",
+                    "Contacto": "Pendiente",
+                    "Certificado": "Pendiente de Carga"
+                }
+                
+                pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, df_raw=st.session_state.get("df_raw_excel"), meta_info=draft_meta)
                 st.download_button(
                     label="📄 DESCARGAR REPORTE PDF DE CONTROL CORPORATIVO",
                     data=pdf_bytes.getvalue(),
