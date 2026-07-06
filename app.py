@@ -1069,17 +1069,36 @@ elif opcion_menu == "🔍 Historial de Reportes":
                                 st.error(f"❌ Error al regenerar: {ex}")
                     
                     st.write("##### Enviar por Correo Electrónico:")
+                    email_default = "compras@sigrama.com.mx"
+                    destinatario_correo = st.text_input(
+                        "📧 Destinatario (Compras/Interno):", 
+                        value=email_default, 
+                        key=f"dest_mail_{rec_sel['folio']}"
+                    )
+                    
                     import urllib.parse
-                    subj = f"SIGRAMA - Reporte de Verificación de Espesores - Folio {rec_sel['folio']}"
+                    subj = f"[DICTAMEN TÉCNICO] Evaluación de Suministro de Material - Folio: {rec_sel['folio']} (Proveedor: {rec_sel['proveedor']})"
+                    
+                    if rec_sel['rechazados'] > 0:
+                        dictamen_sugerido = "❌ NO AUTORIZAR / RECHAZAR PROPUESTA: Se han detectado rollos con espesores fuera de las tolerancias aceptables de planta que representan un alto riesgo de calidad para la operación."
+                    else:
+                        dictamen_sugerido = "✅ AUTORIZAR PROPUESTA: El 100% de los rollos cumple satisfactoriamente con los estándares y tolerancias de diseño de planta (Riesgo Bajo/Moderado)."
+                        
                     body_txt = (
-                        "Estimado Proveedor,\n\n"
-                        "Se anexa reporte de verificación contra la Especificación de espesor de materiales:\n\n"
-                        f"- Folio Oficial: {rec_sel['folio']}\n"
+                        "Estimado Departamento de Compras,\n\n"
+                        f"Se ha completado la evaluación técnica y análisis de riesgo de la propuesta de suministro enviada por el proveedor {rec_sel['proveedor']}, bajo el Folio Oficial {rec_sel['folio']}.\n\n"
+                        "Con base en la inspección micrométrica realizada y el modelo estadístico de probabilidad de fallo, compartimos el dictamen técnico para su respectiva autorización o rechazo comercial:\n\n"
+                        "=== RESUMEN DE INSPECCIÓN Y DICTAMEN ===\n"
+                        f"- Proveedor Ofertante: {rec_sel['proveedor']}\n"
+                        f"- Certificado/Lote: {rec_sel['certificado_info']}\n"
                         f"- Total de Rollos Analizados: {rec_sel['total_rollos']}\n"
-                        f"- Aceptados: {rec_sel['aceptados']}\n"
-                        f"- Rechazados: {rec_sel['rechazados']}\n"
-                        f"- Nivel de Riesgo Promedio: {rec_sel['riesgo_promedio']:.2f}%\n\n"
-                        "Adjunto a este correo encontrará el Reporte Técnico formal correspondiente, así como el Certificado de Calidad.\n\n"
+                        f"- Rollos ACEPTADOS (Riesgo Aceptable): {rec_sel['aceptados']}\n"
+                        f"- Rollos RECHAZADOS (Alto Riesgo): {rec_sel['rechazados']}\n"
+                        f"- Nivel de Riesgo Promedio del Suministro: {rec_sel['riesgo_promedio']:.2f}%\n\n"
+                        "=== DICTAMEN TÉCNICO SUGERIDO ===\n"
+                        f"{dictamen_sugerido}\n\n"
+                        "Se anexan a este correo el Reporte Técnico formal de Ingeniería con las curvas de distribución probabilística de Gauss y el Certificado de Calidad del proveedor para su debido respaldo y archivo.\n\n"
+                        "Quedamos a su disposición para cualquier duda técnica adicional.\n\n"
                         "Atentamente,\n"
                         "Ing. Jesús A. Morales | Director de Maquinados\n"
                         "a: Industria Sigrama | C. Juan Escutia # 50, Col. Abastos | Torreon, Coah.\n"
@@ -1087,24 +1106,18 @@ elif opcion_menu == "🔍 Historial de Reportes":
                         "m: +52 871 7954493"
                     )
                     
-                    supplier_email = ""
-                    for p in database.listar_proveedores():
-                        if p["nombre"] == rec_sel["proveedor"]:
-                            supplier_email = p["correo"]
-                            break
-                            
-                    mailto_url = f"mailto:{supplier_email}?subject={urllib.parse.quote(subj)}&body={urllib.parse.quote(body_txt)}"
+                    mailto_url = f"mailto:{destinatario_correo}?subject={urllib.parse.quote(subj)}&body={urllib.parse.quote(body_txt)}"
                     st.link_button("📧 Redactar en Outlook / Cliente Local", mailto_url, use_container_width=True)
                     
                     if "SMTP_SERVER" in st.secrets:
                         if st.button("✉️ Enviar Reporte por Correo Directo", key=f"btn_send_smtp_{rec_sel['folio']}", use_container_width=True):
-                            with st.spinner("Enviando correo al proveedor..."):
+                            with st.spinner("Enviando correo al destinatario..."):
                                 rep_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
                                 cert_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_certificado"])
                                 attach_paths = [rep_path_abs, cert_path_abs]
-                                success = database.enviar_correo_smtp(supplier_email, subj, body_txt, attach_paths)
+                                success = database.enviar_correo_smtp(destinatario_correo, subj, body_txt, attach_paths)
                                 if success:
-                                    st.success("🎉 ¡El reporte y certificado han sido enviados directamente al correo del proveedor!")
+                                    st.success(f"🎉 ¡El reporte y certificado han sido enviados a {destinatario_correo}!")
                                 else:
                                     st.error("❌ Ocurrió un error al enviar el correo. Verifique las credenciales SMTP.")
                     else:
