@@ -242,7 +242,7 @@ def push_to_github():
         print(f"Error al sincronizar con GitHub: {e}")
         return False
 
-def enviar_correo_smtp(recipient, subject, body, attachment_paths=None):
+def enviar_correo_smtp(recipient, cc_recipients, subject, body, attachment_paths=None):
     """Envía un correo electrónico con múltiples archivos adjuntos usando credenciales SMTP en st.secrets."""
     import smtplib
     from email.mime.multipart import MIMEMultipart
@@ -261,6 +261,8 @@ def enviar_correo_smtp(recipient, subject, body, attachment_paths=None):
         msg = MIMEMultipart()
         msg['From'] = smtp_user
         msg['To'] = recipient
+        if cc_recipients:
+            msg['Cc'] = cc_recipients
         msg['Subject'] = subject
         
         msg.attach(MIMEText(body, 'plain'))
@@ -275,11 +277,16 @@ def enviar_correo_smtp(recipient, subject, body, attachment_paths=None):
                         encoders.encode_base64(part)
                         part.add_header('Content-Disposition', f"attachment; filename= {filename}")
                         msg.attach(part)
+                        
+        # Crear lista plana de todos los destinatarios (To + Cc) para el envío SMTP
+        destinations = [x.strip() for x in recipient.replace(",", ";").split(";") if x.strip()]
+        if cc_recipients:
+            destinations += [x.strip() for x in cc_recipients.replace(",", ";").split(";") if x.strip()]
                 
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_password)
-        server.send_message(msg)
+        server.sendmail(smtp_user, destinations, msg.as_string())
         server.quit()
         return True
     except Exception as e:

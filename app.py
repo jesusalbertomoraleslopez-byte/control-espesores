@@ -1069,21 +1069,18 @@ elif opcion_menu == "🔍 Historial de Reportes":
                                 st.error(f"❌ Error al regenerar: {ex}")
                     
                     st.write("##### Enviar por Correo Electrónico:")
-                    email_default = "compras@sigrama.com.mx"
-                    destinatario_correo = st.text_input(
-                        "📧 Destinatario (Compras/Interno):", 
-                        value=email_default, 
-                        key=f"dest_mail_{rec_sel['folio']}"
+                    dest_to = st.text_input(
+                        "📧 Destinatario (Para):", 
+                        value="josue.mesta@sigrama.com.mx; sarellano@sigrama.com.mx", 
+                        key=f"dest_to_{rec_sel['folio']}"
+                    )
+                    dest_cc = st.text_input(
+                        "📧 Con Copia (CC):", 
+                        value="abastecimientos@sigrama.com.mx; almacen@sigrama.com.mx; bryan.mancinas@sigrama.com.mx", 
+                        key=f"dest_cc_{rec_sel['folio']}"
                     )
                     
                     import urllib.parse
-                    
-                    # Generar URLs públicas de descarga desde el repositorio de GitHub
-                    github_base = "https://github.com/jesusalbertomoraleslopez-byte/control-espesores/raw/main"
-                    rel_rep = rec_sel["ruta_reporte"].replace("\\", "/")
-                    rel_cert = rec_sel["ruta_certificado"].replace("\\", "/")
-                    rep_url = f"{github_base}/{urllib.parse.quote(rel_rep)}"
-                    cert_url = f"{github_base}/{urllib.parse.quote(rel_cert)}"
                     
                     subj = f"[DICTAMEN TÉCNICO] Evaluación de Suministro de Material - Folio: {rec_sel['folio']} (Proveedor: {rec_sel['proveedor']})"
                     
@@ -1118,12 +1115,12 @@ elif opcion_menu == "🔍 Historial de Reportes":
                         f" Veredicto Técnico     : {veredicto}\n"
                         f" Sugerencia            : {dictamen_sugerido}\n\n"
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        " 🔗 ENLACES DE DESCARGA DIRECTA (RESPALDOS)\n"
+                        " 📂 DOCUMENTOS ADJUNTOS\n"
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        f" 📄 Descargar Reporte Técnico PDF:\n"
-                        f" {rep_url}\n\n"
-                        f" 📂 Descargar Certificado de Calidad PDF:\n"
-                        f" {cert_url}\n\n"
+                        " Se anexan a este correo:\n"
+                        f" 1. Reporte Técnico de Espesores ({rec_sel['folio']} - REPORTE.pdf)\n"
+                        f" 2. Certificado de Calidad original (PDF)\n"
+                        " (Nota: Si envía por Outlook local, por favor arrastre e inserte los archivos PDFs antes de enviar).\n"
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                         "Quedamos a su disposición para cualquier duda técnica adicional.\n\n"
                         "Atentamente,\n"
@@ -1133,7 +1130,8 @@ elif opcion_menu == "🔍 Historial de Reportes":
                         "m: +52 871 7954493"
                     )
                     
-                    mailto_url = f"mailto:{destinatario_correo}?subject={urllib.parse.quote(subj)}&body={urllib.parse.quote(body_txt)}"
+                    # Construir URL de mailto con el parámetro de copia CC
+                    mailto_url = f"mailto:{dest_to}?cc={dest_cc}&subject={urllib.parse.quote(subj)}&body={urllib.parse.quote(body_txt)}"
                     st.link_button("📧 Redactar en Outlook / Cliente Local", mailto_url, use_container_width=True)
                     
                     if "SMTP_SERVER" in st.secrets:
@@ -1142,9 +1140,9 @@ elif opcion_menu == "🔍 Historial de Reportes":
                                 rep_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
                                 cert_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_certificado"])
                                 attach_paths = [rep_path_abs, cert_path_abs]
-                                success = database.enviar_correo_smtp(destinatario_correo, subj, body_txt, attach_paths)
+                                success = database.enviar_correo_smtp(dest_to, dest_cc, subj, body_txt, attach_paths)
                                 if success:
-                                    st.success(f"🎉 ¡El reporte y certificado han sido enviados a {destinatario_correo}!")
+                                    st.success(f"🎉 ¡El reporte y certificado han sido enviados a {dest_to} con copia a {dest_cc}!")
                                 else:
                                     st.error("❌ Ocurrió un error al enviar el correo. Verifique las credenciales SMTP.")
                     else:
