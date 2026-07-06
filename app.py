@@ -595,79 +595,101 @@ if opcion_menu == "📊 Suite de Análisis":
                 st.subheader("💾 Guardar Reporte en el Historial del Sistema")
                 st.markdown("Guarde los resultados del análisis de la propuesta del proveedor junto con los documentos de respaldo para auditoría y rastreo futuro.")
                 
-                with st.form("form_guardar_historial", clear_on_submit=False):
-                    col_h1, col_h2 = st.columns(2)
-                    with col_h1:
-                        prov_input = st.text_input("🏢 Proveedor Ofertante:", value="", placeholder="Ej. Ternium, Nucor, AHMSA...")
-                    with col_h2:
-                        cert_info_input = st.text_input("📑 Información del Certificado (ID/Número):", value="", placeholder="Ej. Certificado N° TX-98810")
-                        
-                    col_f1, col_f2 = st.columns(2)
-                    with col_f1:
-                        cert_file_input = st.file_uploader("📂 Archivo de Certificado de Calidad (PDF)", type=["pdf"])
-                    with col_f2:
-                        email_img_input = st.file_uploader("📧 Captura del Correo de Compras (Imagen)", type=["png", "jpg", "jpeg"])
-                        
-                    btn_save = st.form_submit_button("Confirmar y Guardar en Base de Datos")
+                col_h1, col_h2 = st.columns(2)
+                with col_h1:
+                    prov_input = st.text_input("🏢 Proveedor Ofertante:", value="", placeholder="Ej. Ternium, Nucor, AHMSA...", key="prov_input_h")
+                with col_h2:
+                    cert_info_input = st.text_input("📑 Información del Certificado (ID/Número):", value="", placeholder="Ej. Certificado N° TX-98810", key="cert_info_input_h")
                     
-                    if btn_save:
-                        if not prov_input.strip():
-                            st.error("❌ El nombre del proveedor es obligatorio.")
-                        elif not cert_file_input:
-                            st.error("❌ El archivo del Certificado de Calidad en formato PDF es obligatorio.")
-                        elif not email_img_input:
-                            st.error("❌ La captura de pantalla del correo de Compras es obligatoria.")
-                        else:
-                            with st.spinner("Guardando registro y archivos en el expediente..."):
-                                import shutil
-                                import database
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    cert_file_input = st.file_uploader("📂 Archivo de Certificado de Calidad (PDF)", type=["pdf"], key="cert_file_h")
+                with col_f2:
+                    st.write("📧 Captura del Correo de Compras (Imagen)")
+                    # Selector de origen de la captura
+                    metodo_img = st.radio("Origen de la imagen de correo:", ["Archivo", "Pegar del Portapapeles"], horizontal=True, label_visibility="collapsed", key="metodo_img_h")
+                    
+                    email_img_data = None
+                    email_img_name = None
+                    
+                    if metodo_img == "Archivo":
+                        email_img_input = st.file_uploader("Subir captura de correo:", type=["png", "jpg", "jpeg"], label_visibility="collapsed", key="email_img_h")
+                        if email_img_input is not None:
+                            email_img_data = email_img_input.read()
+                            email_img_name = email_img_input.name
+                    else:
+                        from streamlit_paste_button import paste_image_button as pbutton
+                        paste_result = pbutton(
+                            label="📋 PEGAR IMAGEN DESDE PORTAPAPELES",
+                            text_color="#FFFFFF",
+                            background_color="#EC2024",
+                            hover_background_color="#111111",
+                            errors="ignore"
+                        )
+                        if paste_result.image_data is not None:
+                            email_img_data = paste_result.image_data
+                            email_img_name = "Captura_Portapapeles.png"
+                            st.image(email_img_data, caption="Imagen cargada desde el portapapeles", width=250)
+                            
+                btn_save = st.button("Confirmar y Guardar en Base de Datos", key="btn_save_h")
+                
+                if btn_save:
+                    if not prov_input.strip():
+                        st.error("❌ El nombre del proveedor es obligatorio.")
+                    elif not cert_file_input:
+                        st.error("❌ El archivo del Certificado de Calidad en formato PDF es obligatorio.")
+                    elif email_img_data is None:
+                        st.error("❌ La captura de pantalla del correo de Compras es obligatoria (cárguela por archivo o péguela desde el portapapeles).")
+                    else:
+                        with st.spinner("Guardando registro y archivos en el expediente..."):
+                            import database
+                            
+                            # 1. Generar Folio
+                            nuevo_folio = database.generar_siguiente_folio()
+                            folder_exp = os.path.join(database.EXPEDIENTES_DIR, nuevo_folio)
+                            os.makedirs(folder_exp, exist_ok=True)
+                            
+                            # 2. Guardar archivos cargados
+                            cert_ext = os.path.splitext(cert_file_input.name)[1]
+                            email_ext = ".png" if email_img_name == "Captura_Portapapeles.png" else os.path.splitext(email_img_name)[1]
+                            
+                            ruta_cert_dest = os.path.join(folder_exp, f"Certificado_{nuevo_folio}{cert_ext}")
+                            ruta_correo_dest = os.path.join(folder_exp, f"Correo_{nuevo_folio}{email_ext}")
+                            ruta_reporte_dest = os.path.join(folder_exp, f"Reporte_Tecnico_{nuevo_folio}.pdf")
+                            
+                            with open(ruta_cert_dest, "wb") as f_out:
+                                f_out.write(cert_file_input.read())
+                            with open(ruta_correo_dest, "wb") as f_out:
+                                f_out.write(email_img_data)
                                 
-                                # 1. Generar Folio
-                                nuevo_folio = database.generar_siguiente_folio()
-                                folder_exp = os.path.join(database.EXPEDIENTES_DIR, nuevo_folio)
-                                os.makedirs(folder_exp, exist_ok=True)
+                            # 3. Generar y guardar PDF de reporte técnico
+                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor)
+                            with open(ruta_reporte_dest, "wb") as f_out:
+                                f_out.write(report_pdf_bytes.getvalue())
                                 
-                                # 2. Guardar archivos cargados
-                                cert_ext = os.path.splitext(cert_file_input.name)[1]
-                                email_ext = os.path.splitext(email_img_input.name)[1]
-                                
-                                ruta_cert_dest = os.path.join(folder_exp, f"Certificado_{nuevo_folio}{cert_ext}")
-                                ruta_correo_dest = os.path.join(folder_exp, f"Correo_{nuevo_folio}{email_ext}")
-                                ruta_reporte_dest = os.path.join(folder_exp, f"Reporte_Tecnico_{nuevo_folio}.pdf")
-                                
-                                with open(ruta_cert_dest, "wb") as f_out:
-                                    f_out.write(cert_file_input.read())
-                                with open(ruta_correo_dest, "wb") as f_out:
-                                    f_out.write(email_img_input.read())
-                                    
-                                # 3. Generar y guardar PDF de reporte técnico
-                                report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor)
-                                with open(ruta_reporte_dest, "wb") as f_out:
-                                    f_out.write(report_pdf_bytes.getvalue())
-                                    
-                                # 4. Registrar en base de datos
-                                # Rutas relativas para portabilidad de almacenamiento
-                                rel_cert = os.path.relpath(ruta_cert_dest, database.BASE_DIR)
-                                rel_correo = os.path.relpath(ruta_correo_dest, database.BASE_DIR)
-                                rel_reporte = os.path.relpath(ruta_reporte_dest, database.BASE_DIR)
-                                
-                                fecha_hoy = datetime.now().strftime("%d/%m/%Y")
-                                
-                                database.guardar_reporte(
-                                    folio=nuevo_folio,
-                                    fecha=fecha_hoy,
-                                    proveedor=prov_input.strip(),
-                                    certificado_info=cert_info_input.strip(),
-                                    ruta_certificado=rel_cert,
-                                    ruta_correo=rel_correo,
-                                    ruta_reporte=rel_reporte,
-                                    desviacion_ofertada_def=tol_proveedor,
-                                    total_rollos=total_rollos,
-                                    aceptados=aceptados,
-                                    rechazados=rechazados,
-                                    riesgo_promedio=prom_riesgo
-                                )
-                                st.success(f"✅ Reporte guardado exitosamente bajo el Folio: **{nuevo_folio}**")
+                            # 4. Registrar en base de datos
+                            # Rutas relativas para portabilidad de almacenamiento
+                            rel_cert = os.path.relpath(ruta_cert_dest, database.BASE_DIR)
+                            rel_correo = os.path.relpath(ruta_correo_dest, database.BASE_DIR)
+                            rel_reporte = os.path.relpath(ruta_reporte_dest, database.BASE_DIR)
+                            
+                            fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+                            
+                            database.guardar_reporte(
+                                folio=nuevo_folio,
+                                fecha=fecha_hoy,
+                                proveedor=prov_input.strip(),
+                                certificado_info=cert_info_input.strip(),
+                                ruta_certificado=rel_cert,
+                                ruta_correo=rel_correo,
+                                ruta_reporte=rel_reporte,
+                                desviacion_ofertada_def=tol_proveedor,
+                                total_rollos=total_rollos,
+                                aceptados=aceptados,
+                                rechazados=rechazados,
+                                riesgo_promedio=prom_riesgo
+                            )
+                            st.success(f"✅ Reporte guardado exitosamente bajo el Folio: **{nuevo_folio}**")
                                 
         except Exception as e:
             st.error(f"❌ Error crítico en el procesamiento del lote técnico: {str(e)}")
