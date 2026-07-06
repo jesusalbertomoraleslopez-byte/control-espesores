@@ -105,8 +105,8 @@ def generar_excel_plantilla():
             worksheet.column_dimensions[col_letter].width = max(max_len + 4, 16)
             
     return output.getvalue()
-def crear_pdf_formal(df_final, tol_p):
-    """Genera la estructura del documento técnico formal incorporando los nuevos formatos de color y títulos."""
+def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None):
+    """Genera la estructura del documento técnico formal incorporando los nuevos formatos de color y títulos, y miniaturas."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     story = []
@@ -210,6 +210,41 @@ def crear_pdf_formal(df_final, tol_p):
             story.append(Paragraph(f"<i>No se pudo renderizar gráfico para {mat} {calibre}: {str(e)}</i>", c_style))
 
     story.append(Spacer(1, 15))
+    
+    if cert_file_data or email_img_data:
+        story.append(PageBreak())
+        story.append(Paragraph("4. Documentos de Respaldo", h2_st))
+        
+        # 4.1 Certificado
+        if cert_file_data:
+            story.append(Paragraph("4.1. Certificado de Calidad (Miniatura)", h3_st))
+            try:
+                import fitz
+                doc_pdf = fitz.open(stream=cert_file_data, filetype="pdf")
+                page = doc_pdf.load_page(0)
+                pix = page.get_pixmap(matrix=fitz.Matrix(0.5, 0.5))
+                img_bytes = pix.tobytes("png")
+                img_buffer = io.BytesIO(img_bytes)
+                cert_img = RLImage(img_buffer, width=400, height=400, kind='proportional')
+                cert_img.hAlign = 'CENTER'
+                story.append(cert_img)
+            except Exception as e:
+                story.append(Paragraph(f"<i>No se pudo generar miniatura del PDF: {str(e)}</i>", c_style))
+            story.append(Spacer(1, 15))
+            
+        # 4.2 Correo
+        if email_img_data:
+            story.append(Paragraph("4.2. Captura del Correo de Compras", h3_st))
+            try:
+                img_buffer = io.BytesIO(email_img_data)
+                email_img = RLImage(img_buffer, width=400, height=350, kind='proportional')
+                email_img.hAlign = 'CENTER'
+                story.append(email_img)
+            except Exception as e:
+                story.append(Paragraph(f"<i>No se pudo procesar la imagen del correo: {str(e)}</i>", c_style))
+                
+        story.append(Spacer(1, 15))
+
     f_st = ParagraphStyle('FText', fontName='Helvetica', fontSize=10, alignment=1, spaceAfter=2)
     story.append(Paragraph("___________________________________________________", f_st))
     story.append(Paragraph("<b>Ing. Jesús Morales</b>", f_st))
@@ -679,7 +714,7 @@ if opcion_menu == "📊 Suite de Análisis":
                                 f_out.write(email_img_data)
                                 
                             # 3. Generar y guardar PDF de reporte técnico
-                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor)
+                            report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_file_input.getvalue(), email_img_data)
                             with open(ruta_reporte_dest, "wb") as f_out:
                                 f_out.write(report_pdf_bytes.getvalue())
                                 
