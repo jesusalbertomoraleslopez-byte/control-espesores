@@ -162,7 +162,7 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, 
             Paragraph(str(f['Rollo']), c_style), Paragraph(f['Material'], c_style), Paragraph(str(f['Calibre']), c_style),
             Paragraph(f"{f['Espesor Real (in)']:.4f}\"", c_style), Paragraph(f"{f['% de Riesgo']:.2f}%", c_style), Paragraph(f['Riesgo'], c_style)
         ])
-    t_1 = Table(t_rollos_d, colWidths=[90, 100, 70, 90, 80, 100])
+    t_1 = Table(t_rollos_d, colWidths=[140, 90, 60, 80, 70, 90])
     t_1.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#111111')), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3'))]))
     story.append(t_1)
     
@@ -195,7 +195,7 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, 
             ])
             est_estilo_grupo.append(('BACKGROUND', (4, fila_pdf), (4, fila_pdf), bg_color))
             
-        t_g = Table(t_group_d, colWidths=[110, 110, 110, 110, 110])
+        t_g = Table(t_group_d, colWidths=[150, 95, 95, 95, 95])
         t_g.setStyle(TableStyle(est_estilo_grupo))
         story.append(t_g)
         story.append(Spacer(1, 8))
@@ -293,9 +293,12 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, 
             raw_data.append(row_data)
             
         num_cols = len(df_raw.columns)
-        col_w = 520 / num_cols if num_cols > 0 else 100
-        
-        t_raw = Table(raw_data, colWidths=[col_w]*num_cols, repeatRows=1)
+        if num_cols == 6:
+            col_widths = [150, 80, 60, 80, 70, 80]
+        else:
+            col_widths = [520 / num_cols] * num_cols
+            
+        t_raw = Table(raw_data, colWidths=col_widths, repeatRows=1)
         t_raw.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#111111')), 
             ('ALIGN', (0,0), (-1,-1), 'CENTER'), 
