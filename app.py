@@ -606,21 +606,20 @@ if opcion_menu == "📊 Suite de Análisis":
                     cert_file_input = st.file_uploader("📂 Archivo de Certificado de Calidad (PDF)", type=["pdf"], key="cert_file_h")
                 with col_f2:
                     st.write("📧 Captura del Correo de Compras (Imagen)")
-                    # Selector de origen de la captura
-                    metodo_img = st.radio("Origen de la imagen de correo:", ["Archivo", "Pegar del Portapapeles"], horizontal=True, label_visibility="collapsed", key="metodo_img_h")
                     
                     email_img_data = None
                     email_img_name = None
                     
-                    if metodo_img == "Archivo":
-                        email_img_input = st.file_uploader("Subir captura de correo:", type=["png", "jpg", "jpeg"], label_visibility="collapsed", key="email_img_h")
+                    col_img_file, col_img_paste = st.columns([0.5, 0.5])
+                    with col_img_file:
+                        email_img_input = st.file_uploader("Subir imagen:", type=["png", "jpg", "jpeg"], label_visibility="collapsed", key="email_img_h")
                         if email_img_input is not None:
                             email_img_data = email_img_input.read()
                             email_img_name = email_img_input.name
-                    else:
+                    with col_img_paste:
                         from streamlit_paste_button import paste_image_button as pbutton
                         paste_result = pbutton(
-                            label="📋 PEGAR IMAGEN DESDE PORTAPAPELES",
+                            label="📋 PEGAR DE PORTAPAPELES",
                             text_color="#FFFFFF",
                             background_color="#EC2024",
                             hover_background_color="#111111",
@@ -629,7 +628,9 @@ if opcion_menu == "📊 Suite de Análisis":
                         if paste_result.image_data is not None:
                             email_img_data = paste_result.image_data
                             email_img_name = "Captura_Portapapeles.png"
-                            st.image(email_img_data, caption="Imagen cargada desde el portapapeles", width=250)
+                    
+                    if email_img_data is not None:
+                        st.image(email_img_data, caption=f"Imagen cargada: {email_img_name}", width=250)
                             
                 btn_save = st.button("Confirmar y Guardar en Base de Datos", key="btn_save_h")
                 
