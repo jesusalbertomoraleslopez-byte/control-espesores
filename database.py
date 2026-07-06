@@ -242,8 +242,8 @@ def push_to_github():
         print(f"Error al sincronizar con GitHub: {e}")
         return False
 
-def enviar_correo_smtp(recipient, subject, body, attachment_path=None):
-    """Envía un correo electrónico con un archivo adjunto usando credenciales SMTP en st.secrets."""
+def enviar_correo_smtp(recipient, subject, body, attachment_paths=None):
+    """Envía un correo electrónico con múltiples archivos adjuntos usando credenciales SMTP en st.secrets."""
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
@@ -265,14 +265,16 @@ def enviar_correo_smtp(recipient, subject, body, attachment_path=None):
         
         msg.attach(MIMEText(body, 'plain'))
         
-        if attachment_path and os.path.exists(attachment_path):
-            filename = os.path.basename(attachment_path)
-            with open(attachment_path, "rb") as attachment:
-                part = MIMEBase('application', 'octet-stream')
-                part.set_payload(attachment.read())
-                encoders.encode_base64(part)
-                part.add_header('Content-Disposition', f"attachment; filename= {filename}")
-                msg.attach(part)
+        if attachment_paths:
+            for path in attachment_paths:
+                if path and os.path.exists(path):
+                    filename = os.path.basename(path)
+                    with open(path, "rb") as attachment:
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(attachment.read())
+                        encoders.encode_base64(part)
+                        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+                        msg.attach(part)
                 
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()

@@ -1070,8 +1070,22 @@ elif opcion_menu == "🔍 Historial de Reportes":
                     
                     st.write("##### Enviar por Correo Electrónico:")
                     import urllib.parse
-                    subj = f"SIGRAMA - Reporte de Control de Suministro - Folio {rec_sel['folio']}"
-                    body_txt = f"Estimado Proveedor,\n\nSe ha realizado la evaluación técnica de espesores correspondiente al suministro bajo el Folio Oficial {rec_sel['folio']}.\n\nResumen de la inspección:\n- Total de Rollos Analizados: {rec_sel['total_rollos']}\n- Aceptados: {rec_sel['aceptados']}\n- Rechazados: {rec_sel['rechazados']}\n- Nivel de Riesgo Promedio: {rec_sel['riesgo_promedio']:.2f}%\n\nAdjunto a este correo encontrará el Reporte Técnico formal correspondiente.\n\nAtentamente,\nIngeniería de Calidad\nIndustria SIGRAMA"
+                    subj = f"SIGRAMA - Reporte de Verificación de Espesores - Folio {rec_sel['folio']}"
+                    body_txt = (
+                        "Estimado Proveedor,\n\n"
+                        "Se anexa reporte de verificación contra la Especificación de espesor de materiales:\n\n"
+                        f"- Folio Oficial: {rec_sel['folio']}\n"
+                        f"- Total de Rollos Analizados: {rec_sel['total_rollos']}\n"
+                        f"- Aceptados: {rec_sel['aceptados']}\n"
+                        f"- Rechazados: {rec_sel['rechazados']}\n"
+                        f"- Nivel de Riesgo Promedio: {rec_sel['riesgo_promedio']:.2f}%\n\n"
+                        "Adjunto a este correo encontrará el Reporte Técnico formal correspondiente, así como el Certificado de Calidad.\n\n"
+                        "Atentamente,\n"
+                        "Ing. Jesús A. Morales | Director de Maquinados\n"
+                        "a: Industria Sigrama | C. Juan Escutia # 50, Col. Abastos | Torreon, Coah.\n"
+                        "w: www.sigrama.com.mx\n"
+                        "m: +52 871 7954493"
+                    )
                     
                     supplier_email = ""
                     for p in database.listar_proveedores():
@@ -1086,9 +1100,11 @@ elif opcion_menu == "🔍 Historial de Reportes":
                         if st.button("✉️ Enviar Reporte por Correo Directo", key=f"btn_send_smtp_{rec_sel['folio']}", use_container_width=True):
                             with st.spinner("Enviando correo al proveedor..."):
                                 rep_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
-                                success = database.enviar_correo_smtp(supplier_email, subj, body_txt, rep_path_abs)
+                                cert_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_certificado"])
+                                attach_paths = [rep_path_abs, cert_path_abs]
+                                success = database.enviar_correo_smtp(supplier_email, subj, body_txt, attach_paths)
                                 if success:
-                                    st.success("🎉 ¡El reporte ha sido enviado directamente al correo del proveedor!")
+                                    st.success("🎉 ¡El reporte y certificado han sido enviados directamente al correo del proveedor!")
                                 else:
                                     st.error("❌ Ocurrió un error al enviar el correo. Verifique las credenciales SMTP.")
                     else:
