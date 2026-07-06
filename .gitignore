@@ -1,8 +1,5 @@
-# Ignore SQLite database
-espesores_historial.db
-
-# Ignore uploaded expedientes files
-expedientes/
+# Database and expedientes are tracked for persistent storage in GitHub
+# espesores_historial.db and expedientes/ will be committed programmatically
 
 # Ignore python cache
 __pycache__/
