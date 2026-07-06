@@ -857,6 +857,14 @@ elif opcion_menu == "🔍 Historial de Reportes":
                     st.image(correo_path, use_container_width=True)
                 else:
                     st.warning("⚠️ Captura del correo de compras no encontrada.")
+                    
+            st.write("---")
+            st.write("##### 🗑️ Zona de Peligro: Eliminar Expediente")
+            conf_eliminar_exp = st.checkbox(f"Confirmo que deseo eliminar definitivamente el expediente **{rec_sel['folio']}** de la base de datos.", key=f"chk_eliminar_{rec_sel['folio']}")
+            if conf_eliminar_exp:
+                if st.button("ELIMINAR EXPEDIENTE", type="primary", key=f"btn_eliminar_exp_{rec_sel['folio']}"):
+                    database.eliminar_reporte(rec_sel['folio'])
+                    st.rerun()
 
 elif opcion_menu == "🏢 Catálogo de Proveedores":
     importlib.reload(database)

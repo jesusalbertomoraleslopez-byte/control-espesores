@@ -170,6 +170,20 @@ def eliminar_proveedor(id_prov):
     conn.commit()
     conn.close()
 
+def eliminar_reporte(folio):
+    """Elimina un reporte específico y todos sus archivos físicos asociados."""
+    # 1. Eliminar archivos físicos
+    folder_exp = os.path.join(EXPEDIENTES_DIR, folio)
+    if os.path.exists(folder_exp):
+        shutil.rmtree(folder_exp)
+        
+    # 2. Eliminar registro de la base de datos
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM historial_reportes WHERE folio = ?", (folio,))
+    conn.commit()
+    conn.close()
+
 def limpiar_base_datos():
     """Borra todos los registros, proveedores y archivos, reiniciando el sistema a su estado de fábrica."""
     conn = get_connection()
