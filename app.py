@@ -892,7 +892,8 @@ elif opcion_menu == "🏢 Catálogo de Proveedores":
             if confirm_eliminar:
                 btn_eliminar = st.button("Eliminar Proveedor", type="primary", key="btn_eliminar_prov")
                 if btn_eliminar:
-                    database.eliminar_proveedor(row_prov["id"])
-                    st.success(f"✅ Proveedor **{prov_a_eliminar}** eliminado con éxito.")
+                    # Castear explicitamente a int nativo de Python para evitar fallos silenciosos de SQLite con numpy.int64
+                    id_prov_int = int(row_prov["id"])
+                    database.eliminar_proveedor(id_prov_int)
                     st.rerun()
 
