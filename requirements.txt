@@ -6,3 +6,4 @@ scipy
 reportlab
 openpyxl
 matplotlib
+streamlit-paste-button
