@@ -296,5 +296,39 @@ def enviar_correo_smtp(recipient, cc_recipients, subject, body, attachment_paths
         print(f"Error al enviar correo SMTP: {e}")
         return False
 
+def generar_archivo_eml(recipient, cc_recipients, subject, body_html, attachment_paths=None):
+    """Genera un archivo .eml con X-Unsent: 1 para que Outlook lo abra como borrador editable con adjuntos."""
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+    import os
+    
+    try:
+        msg = MIMEMultipart()
+        msg['To'] = recipient
+        if cc_recipients:
+            msg['Cc'] = cc_recipients
+        msg['Subject'] = subject
+        msg['X-Unsent'] = '1'  # Indicar a Outlook que es un borrador no enviado
+        
+        msg.attach(MIMEText(body_html, 'html'))
+        
+        if attachment_paths:
+            for path in attachment_paths:
+                if path and os.path.exists(path):
+                    filename = os.path.basename(path)
+                    with open(path, "rb") as attachment:
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(attachment.read())
+                        encoders.encode_base64(part)
+                        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+                        msg.attach(part)
+                        
+        return msg.as_bytes()
+    except Exception as e:
+        print(f"Error al generar archivo EML: {e}")
+        return None
+
 # Inicializar al importar para asegurar que la tabla existe
 init_db()

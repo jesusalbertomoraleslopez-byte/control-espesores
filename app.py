@@ -1204,7 +1204,26 @@ elif opcion_menu == "🔍 Historial de Reportes":
                     
                     # Construir URL de mailto con el parámetro de copia CC
                     mailto_url = f"mailto:{dest_to}?cc={dest_cc}&subject={urllib.parse.quote(subj)}&body={urllib.parse.quote(body_txt)}"
-                    st.link_button("📧 Redactar en Outlook / Cliente Local", mailto_url, use_container_width=True)
+                    
+                    # Generar los bytes del borrador .eml con adjuntos físicos y HTML
+                    rep_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
+                    cert_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_certificado"])
+                    attach_paths = [rep_path_abs, cert_path_abs]
+                    eml_data = database.generar_archivo_eml(dest_to, dest_cc, subj, body_html, attach_paths)
+                    
+                    col_email_b1, col_email_b2 = st.columns(2)
+                    with col_email_b1:
+                        st.link_button("📧 Redactar en Outlook (Texto Rápido)", mailto_url, use_container_width=True)
+                    with col_email_b2:
+                        if eml_data is not None:
+                            st.download_button(
+                                label="✉️ Descargar Borrador con Adjuntos (Recomendado)",
+                                data=eml_data,
+                                file_name=f"Borrador_{rec_sel['folio']}.eml",
+                                mime="message/rfc822",
+                                use_container_width=True,
+                                key=f"btn_dl_eml_{rec_sel['folio']}"
+                            )
                     
                     if "SMTP_SERVER" in st.secrets:
                         if st.button("✉️ Enviar Reporte por Correo Directo", key=f"btn_send_smtp_{rec_sel['folio']}", use_container_width=True):
