@@ -721,9 +721,9 @@ if opcion_menu == "📊 Suite de Análisis":
                             cert_ext = os.path.splitext(cert_file_input.name)[1]
                             email_ext = ".png" if email_img_name == "Captura_Portapapeles.png" else os.path.splitext(email_img_name)[1]
                             
-                            ruta_cert_dest = os.path.join(folder_exp, f"Certificado_{nuevo_folio}{cert_ext}")
-                            ruta_correo_dest = os.path.join(folder_exp, f"Correo_{nuevo_folio}{email_ext}")
-                            ruta_reporte_dest = os.path.join(folder_exp, f"Reporte_Tecnico_{nuevo_folio}.pdf")
+                            ruta_cert_dest = os.path.join(folder_exp, f"{nuevo_folio} - CERTIFICADO{cert_ext}")
+                            ruta_correo_dest = os.path.join(folder_exp, f"{nuevo_folio} - IMAGEN{email_ext}")
+                            ruta_reporte_dest = os.path.join(folder_exp, f"{nuevo_folio} - REPORTE.pdf")
                             
                             with open(ruta_cert_dest, "wb") as f_out:
                                 f_out.write(cert_file_input.read())
@@ -838,11 +838,12 @@ elif opcion_menu == "🔍 Historial de Reportes":
                 # Reporte PDF
                 rep_path = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
                 if os.path.exists(rep_path):
+                    rep_name = os.path.basename(rep_path)
                     with open(rep_path, "rb") as f_pdf:
                         st.download_button(
                             label="📄 Descargar Reporte Técnico (PDF)",
                             data=f_pdf.read(),
-                            file_name=f"Reporte_Tecnico_{rec_sel['folio']}.pdf",
+                            file_name=rep_name,
                             mime="application/pdf",
                             use_container_width=True,
                             key=f"btn_dl_rep_{rec_sel['folio']}"
