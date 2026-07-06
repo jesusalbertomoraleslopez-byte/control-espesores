@@ -222,7 +222,7 @@ def crear_pdf_formal(df_final, tol_p, cert_file_data=None, email_img_data=None, 
     story.append(Spacer(1, 15))
     
     if cert_file_data or email_img_data:
-        story.append(Spacer(1, 15))
+        story.append(PageBreak())
         story.append(Paragraph("4. Documentos de Respaldo", h2_st))
         
         row_titles = []
