@@ -1077,27 +1077,54 @@ elif opcion_menu == "🔍 Historial de Reportes":
                     )
                     
                     import urllib.parse
+                    
+                    # Generar URLs públicas de descarga desde el repositorio de GitHub
+                    github_base = "https://github.com/jesusalbertomoraleslopez-byte/control-espesores/raw/main"
+                    rel_rep = rec_sel["ruta_reporte"].replace("\\", "/")
+                    rel_cert = rec_sel["ruta_certificado"].replace("\\", "/")
+                    rep_url = f"{github_base}/{urllib.parse.quote(rel_rep)}"
+                    cert_url = f"{github_base}/{urllib.parse.quote(rel_cert)}"
+                    
                     subj = f"[DICTAMEN TÉCNICO] Evaluación de Suministro de Material - Folio: {rec_sel['folio']} (Proveedor: {rec_sel['proveedor']})"
                     
                     if rec_sel['rechazados'] > 0:
-                        dictamen_sugerido = "❌ NO AUTORIZAR / RECHAZAR PROPUESTA: Se han detectado rollos con espesores fuera de las tolerancias aceptables de planta que representan un alto riesgo de calidad para la operación."
+                        veredicto = "❌ RECHAZADO (NO AUTORIZAR PROPUESTA)"
+                        dictamen_sugerido = (
+                            "Se han detectado rollos con espesores fuera de las tolerancias aceptables de planta "
+                            "que representan un alto riesgo de calidad para la operación. Se sugiere rechazar la propuesta."
+                        )
                     else:
-                        dictamen_sugerido = "✅ AUTORIZAR PROPUESTA: El 100% de los rollos cumple satisfactoriamente con los estándares y tolerancias de diseño de planta (Riesgo Bajo/Moderado)."
+                        veredicto = "✅ ACEPTADO (AUTORIZAR PROPUESTA)"
+                        dictamen_sugerido = (
+                            "El 100% de los rollos cumple satisfactoriamente con los estándares y tolerancias de diseño de planta. "
+                            "Se sugiere autorizar la propuesta."
+                        )
                         
                     body_txt = (
                         "Estimado Departamento de Compras,\n\n"
-                        f"Se ha completado la evaluación técnica y análisis de riesgo de la propuesta de suministro enviada por el proveedor {rec_sel['proveedor']}, bajo el Folio Oficial {rec_sel['folio']}.\n\n"
-                        "Con base en la inspección micrométrica realizada y el modelo estadístico de probabilidad de fallo, compartimos el dictamen técnico para su respectiva autorización o rechazo comercial:\n\n"
-                        "=== RESUMEN DE INSPECCIÓN Y DICTAMEN ===\n"
-                        f"- Proveedor Ofertante: {rec_sel['proveedor']}\n"
-                        f"- Certificado/Lote: {rec_sel['certificado_info']}\n"
-                        f"- Total de Rollos Analizados: {rec_sel['total_rollos']}\n"
-                        f"- Rollos ACEPTADOS (Riesgo Aceptable): {rec_sel['aceptados']}\n"
-                        f"- Rollos RECHAZADOS (Alto Riesgo): {rec_sel['rechazados']}\n"
-                        f"- Nivel de Riesgo Promedio del Suministro: {rec_sel['riesgo_promedio']:.2f}%\n\n"
-                        "=== DICTAMEN TÉCNICO SUGERIDO ===\n"
-                        f"{dictamen_sugerido}\n\n"
-                        "Se anexan a este correo el Reporte Técnico formal de Ingeniería con las curvas de distribución probabilística de Gauss y el Certificado de Calidad del proveedor para su debido respaldo y archivo.\n\n"
+                        f"Se comparte el Dictamen Técnico correspondiente a la evaluación técnica de espesores del proveedor {rec_sel['proveedor']} bajo el Folio Oficial {rec_sel['folio']}.\n\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        " 📋 RESUMEN DE INSPECCIÓN Y DICTAMEN\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f" • Proveedor Ofertante : {rec_sel['proveedor']}\n"
+                        f" • Certificado / Lote : {rec_sel['certificado_info']}\n"
+                        f" • Total Rollos        : {rec_sel['total_rollos']}\n"
+                        f" • Rollos Aceptados    : {rec_sel['aceptados']}\n"
+                        f" • Rollos Rechazados   : {rec_sel['rechazados']}\n"
+                        f" • Riesgo Promedio     : {rec_sel['riesgo_promedio']:.2f}%\n\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        " ⚖️ DICTAMEN TÉCNICO SUGERIDO\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f" Veredicto Técnico     : {veredicto}\n"
+                        f" Sugerencia            : {dictamen_sugerido}\n\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        " 🔗 ENLACES DE DESCARGA DIRECTA (RESPALDOS)\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f" 📄 Descargar Reporte Técnico PDF:\n"
+                        f" {rep_url}\n\n"
+                        f" 📂 Descargar Certificado de Calidad PDF:\n"
+                        f" {cert_url}\n\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                         "Quedamos a su disposición para cualquier duda técnica adicional.\n\n"
                         "Atentamente,\n"
                         "Ing. Jesús A. Morales | Director de Maquinados\n"
