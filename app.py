@@ -959,6 +959,115 @@ elif opcion_menu == "🔍 Historial de Reportes":
                             key=f"btn_dl_xls_{rec_sel['folio']}"
                         )
                     
+                    st.write("##### Acciones del Expediente:")
+                    if st.button("🔄 Regenerar Reporte Técnico", key=f"btn_regen_{rec_sel['folio']}", use_container_width=True):
+                        with st.spinner("Regenerando reporte técnico con los formatos actuales..."):
+                            try:
+                                # 1. Cargar Excel
+                                df_excel = pd.read_excel(excel_path)
+                                
+                                # 2. Calcular los datos
+                                res = []
+                                col_tol = None
+                                for col in df_excel.columns:
+                                    if col.strip().lower() in ["tolerancia_proveedor", "tolerancia", "tolerancia proveedor", "tolerancia ofertada"]:
+                                        col_tol = col
+                                        break
+                                
+                                for _, f in df_excel.iterrows():
+                                    mat = str(f["Material"]).strip()
+                                    cal = int(f["Calibre"])
+                                    if mat not in ESTANDAR or cal not in ESTANDAR[mat]:
+                                        continue
+                                    med = float(f["Espesor_Medido"])
+                                    uni = str(f["Unidad"]).strip().lower()
+                                    esp_in = round(med * 0.0393701, 4) if ("mm" in uni or "mili" in uni) else med
+                                    tol_r = float(f[col_tol]) if (col_tol and pd.notna(f[col_tol])) else tol_proveedor
+                                    res.append({
+                                        "Rollo": str(f["Numero_Rollo"]),
+                                        "Material": mat,
+                                        "Calibre": f"CAL {cal}",
+                                        "Espesor Original": f"{med} {'mm' if 'mm' in uni else 'in'}",
+                                        "Espesor Real (in)": esp_in,
+                                        "Nominal Estándar": ESTANDAR[mat][cal],
+                                        "Desviación Real (in)": round(esp_in - ESTANDAR[mat][cal], 4),
+                                        "Tolerancia_Rollo": tol_r
+                                    })
+                                df_datos_cargados = pd.DataFrame(res)
+                                
+                                # Calcular riesgos
+                                riesgo_l = []
+                                est_l = []
+                                dictamen_final_l = []
+                                for _, fila in df_datos_cargados.iterrows():
+                                    med_individual = fila['Espesor Real (in)']
+                                    nom_individual = fila['Nominal Estándar']
+                                    tol_r = fila['Tolerancia_Rollo']
+                                    sigma_individual = tol_r / 3.0
+                                    p_inf_ind = stats.norm.cdf(nom_individual - TOLERANCIA_INTERNA, loc=med_individual, scale=sigma_individual)
+                                    p_sup_ind = 1.0 - stats.norm.cdf(nom_individual + TOLERANCIA_INTERNA, loc=med_individual, scale=sigma_individual)
+                                    riesgo_rollo_pct = (p_inf_ind + p_sup_ind) * 100
+                                    riesgo_l.append(riesgo_rollo_pct)
+                                    if riesgo_rollo_pct < 1.0:
+                                        est_l.append("RIESGO BAJO")
+                                        dictamen_final_l.append("ACEPTADO")
+                                    elif riesgo_rollo_pct <= 5.0:
+                                        est_l.append("RIESGO MODERADO")
+                                        dictamen_final_l.append("ACEPTADO")
+                                    else:
+                                        est_l.append("ALTO RIESGO")
+                                        dictamen_final_l.append("NO ACEPTADO")
+                                df_datos_cargados['% de Riesgo'] = riesgo_l
+                                df_datos_cargados['Riesgo'] = est_l
+                                df_datos_cargados['Dictamen Final'] = dictamen_final_l
+                                
+                                # 3. Cargar Certificado y Correo si existen
+                                cert_data = None
+                                cert_path = os.path.join(database.BASE_DIR, rec_sel["ruta_certificado"])
+                                if os.path.exists(cert_path):
+                                    with open(cert_path, "rb") as f_cert:
+                                        cert_data = f_cert.read()
+                                        
+                                email_data = None
+                                correo_path = os.path.join(database.BASE_DIR, rec_sel["ruta_correo"])
+                                if os.path.exists(correo_path):
+                                    with open(correo_path, "rb") as f_email:
+                                        email_data = f_email.read()
+                                        
+                                # 4. Obtener datos del Proveedor para el Contacto
+                                contact_info = "N/D"
+                                for p in database.listar_proveedores():
+                                    if p["nombre"] == rec_sel["proveedor"]:
+                                        parts = [p['contacto']]
+                                        if p['correo']: parts.append(p['correo'])
+                                        if p['telefono']: parts.append(p['telefono'])
+                                        contact_info = " / ".join([str(x) for x in parts if str(x).strip()])
+                                        break
+                                        
+                                # 5. Construir meta_info con la fecha original de registro
+                                meta_info = {
+                                    "Folio": rec_sel["folio"],
+                                    "Fecha": rec_sel["fecha"],
+                                    "Proveedor": rec_sel["proveedor"],
+                                    "Contacto": contact_info,
+                                    "Certificado": rec_sel["certificado_info"]
+                                }
+                                
+                                # 6. Generar PDF
+                                report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, cert_data, email_data, df_raw=df_excel, meta_info=meta_info)
+                                
+                                # 7. Sobrescribir PDF viejo
+                                with open(rep_path, "wb") as f_out:
+                                    f_out.write(report_pdf_bytes.getvalue())
+                                    
+                                # 8. Sincronizar cambios a GitHub
+                                database.push_to_github()
+                                
+                                st.success("🎉 ¡El reporte técnico ha sido regenerado con éxito con la plantilla y formatos actuales!")
+                                st.rerun()
+                            except Exception as ex:
+                                st.error(f"❌ Error al regenerar: {ex}")
+                    
             with col_d2:
                 # Mostrar imagen del correo de compras
                 correo_path = os.path.join(database.BASE_DIR, rec_sel["ruta_correo"])
