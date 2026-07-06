@@ -1216,15 +1216,18 @@ elif opcion_menu == "3. 🔍 Consulta e Historial":
                             except Exception as ex:
                                 st.error(f"❌ Error al regenerar: {ex}")
                     
+                    # Cargar configuración de correos persistente
+                    emails_cfg = database.obtener_emails_config()
+                    
                     st.write("##### Enviar por Correo Electrónico:")
                     dest_to = st.text_input(
                         "📧 Destinatario (Para):", 
-                        value="josue.mesta@sigrama.com.mx; sarellano@sigrama.com.mx", 
+                        value=emails_cfg["dest_to"], 
                         key=f"dest_to_{rec_sel['folio']}"
                     )
                     dest_cc = st.text_input(
                         "📧 Con Copia (CC):", 
-                        value="abastecimientos@sigrama.com.mx; almacen@sigrama.com.mx; bryan.mancinas@sigrama.com.mx", 
+                        value=emails_cfg["dest_cc"], 
                         key=f"dest_cc_{rec_sel['folio']}"
                     )
                     
@@ -1615,6 +1618,39 @@ elif opcion_menu == "8. 🔧 Mantenimiento del Sistema":
                 "https://github.com/jesusalbertomoraleslopez-byte/control-espesores",
                 use_container_width=True
             )
+            
+        st.write("---")
+        
+        # Configuración de Listas de Distribución de Correos
+        st.write("### ✉️ Listas de Distribución de Correos (Destinatarios Oficiales)")
+        st.markdown("Configure las listas preestablecidas de correos electrónicos para el envío de dictámenes técnicos.")
+        
+        emails_cfg = database.obtener_emails_config()
+        
+        col_em1, col_em2 = st.columns(2)
+        with col_em1:
+            st.write("##### 📧 Lista: Destinatario (Para)")
+            cfg_to = st.text_area(
+                "Correos principales (separados por punto y coma `;`):",
+                value=emails_cfg["dest_to"],
+                help="Ejemplo: correo1@sigrama.com.mx; correo2@sigrama.com.mx",
+                key="text_area_cfg_to"
+            )
+        with col_em2:
+            st.write("##### 📧 Lista: Con Copia (CC)")
+            cfg_cc = st.text_area(
+                "Correos en copia (separados por punto y coma `;`):",
+                value=emails_cfg["dest_cc"],
+                help="Ejemplo: correo3@sigrama.com.mx; correo4@sigrama.com.mx",
+                key="text_area_cfg_cc"
+            )
+            
+        if st.button("💾 Guardar Listas de Distribución", use_container_width=True, key="btn_save_emails_config"):
+            if database.guardar_emails_config(cfg_to.strip(), cfg_cc.strip()):
+                st.success("🎉 Listas de distribución de correos actualizadas y guardadas con éxito.")
+                st.rerun()
+            else:
+                st.error("Error al guardar la configuración de correos.")
             
         st.write("---")
         

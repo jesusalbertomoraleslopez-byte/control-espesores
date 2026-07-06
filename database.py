@@ -330,5 +330,50 @@ def generar_archivo_eml(recipient, cc_recipients, subject, body_html, attachment
         print(f"Error al generar archivo EML: {e}")
         return None
 
+def obtener_emails_config():
+    """Retorna la lista de correos destinatarios por defecto desde un archivo JSON local."""
+    import json
+    config_path = os.path.join(BASE_DIR, "config_emails.json")
+    default_config = {
+        "dest_to": "josue.mesta@sigrama.com.mx; sarellano@sigrama.com.mx",
+        "dest_cc": "abastecimientos@sigrama.com.mx; almacen@sigrama.com.mx; bryan.mancinas@sigrama.com.mx"
+    }
+    if not os.path.exists(config_path):
+        try:
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(default_config, f, indent=4)
+        except Exception as e:
+            print(f"Error al escribir config de correos por defecto: {e}")
+        return default_config
+    
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # Asegurar que las llaves estén presentes
+            if "dest_to" not in data:
+                data["dest_to"] = default_config["dest_to"]
+            if "dest_cc" not in data:
+                data["dest_cc"] = default_config["dest_cc"]
+            return data
+    except Exception as e:
+        print(f"Error al leer config de correos: {e}")
+        return default_config
+
+def guardar_emails_config(dest_to, dest_cc):
+    """Guarda la lista de correos en el archivo JSON local."""
+    import json
+    config_path = os.path.join(BASE_DIR, "config_emails.json")
+    data = {
+        "dest_to": dest_to,
+        "dest_cc": dest_cc
+    }
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        return True
+    except Exception as e:
+        print(f"Error al guardar config de correos: {e}")
+        return False
+
 # Inicializar al importar para asegurar que la tabla existe
 init_db()
