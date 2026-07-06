@@ -17,7 +17,7 @@ st.set_page_config(page_title="Suite de Riesgo y Control de Espesores", layout="
 
 # 2. CONFIGURACIÓN GRÁFICA VECTORIAL Y REPORTES NATIVOS
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image as RLImage, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
