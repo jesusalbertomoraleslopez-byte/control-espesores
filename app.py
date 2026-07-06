@@ -531,7 +531,7 @@ opcion_menu = st.sidebar.radio(
     "Módulos del Sistema:", 
     [
         "1. 📊 Dashboard de Control", 
-        "2. ⚙️ Suite de Análisis", 
+        "2. ⚙️ Carga de Propuesta Proveedor", 
         "3. 🔍 Consulta e Historial", 
         "4. 🏢 Catálogo de Proveedores", 
         "5. 📜 Sistema de Gestión de Calidad (SGC)",
@@ -620,8 +620,8 @@ if opcion_menu == "1. 📊 Dashboard de Control":
         df_resumen.columns = ["Folio", "Fecha", "Proveedor", "Total Rollos", "Aceptados", "Rechazados", "Riesgo Promedio (%)"]
         st.dataframe(df_resumen.sort_values(by="Folio", ascending=False).head(5), use_container_width=True, hide_index=True)
 
-elif opcion_menu == "2. ⚙️ Suite de Análisis":
-    st.title("⚙️ Suite de Riesgo y Control de Suministros")
+elif opcion_menu == "2. ⚙️ Carga de Propuesta Proveedor":
+    st.title("⚙️ Carga de Propuesta de Proveedor")
     st.markdown(f"**Estándar Fijo Planta (Norma Interna de Diseño):** `±{TOLERANCIA_INTERNA}\"`")
 
     archivo_cargado = st.file_uploader("📥 Cargar datos industriales para simulación (Excel)", type=["xlsx"])
@@ -1509,7 +1509,7 @@ elif opcion_menu == "7. 📘 Manual de Operación":
     3. Abra el archivo Excel descargado y capture las mediciones tomadas del rollo en planta (columnas: `Numero_Rollo`, `Material`, `Calibre`, `Espesor_Medido`, `Unidad`).
     
     #### ⚙️ Paso 2: Ejecutar el Análisis
-    1. Diríjase al menú **`2. ⚙️ Suite de Análisis`**.
+    1. Diríjase al menú **`2. ⚙️ Carga de Propuesta Proveedor`** o cargue la propuesta directa.
     2. Suba su archivo Excel completado.
     3. Seleccione el proveedor del catálogo.
     4. Capture el número de Certificado/Lote del material.
