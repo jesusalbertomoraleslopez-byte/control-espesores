@@ -541,12 +541,7 @@ opcion_menu = st.sidebar.radio(
     ]
 )
 
-st.sidebar.write("---")
-st.sidebar.subheader("🛠️ Parámetros de Control")
-tol_proveedor = st.sidebar.slider(
-    'Tolerancia por Defecto (Fallback) (±):',
-    min_value=0.001, max_value=0.008, value=0.006, step=0.001, format="%.3f"
-)
+tol_proveedor = 0.006
 
 st.sidebar.write("---")
 st.sidebar.subheader("📋 Acciones y Plantillas")
