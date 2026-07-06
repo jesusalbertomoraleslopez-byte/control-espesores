@@ -412,6 +412,13 @@ st.sidebar.download_button(
     use_container_width=True
 )
 
+st.sidebar.write("---")
+st.sidebar.subheader("⚠️ Zona de Peligro")
+if st.sidebar.button("🗑️ Limpiar Base de Datos", type="primary", use_container_width=True):
+    database.limpiar_base_datos()
+    st.sidebar.success("Base de datos y registros limpiados con éxito.")
+    st.rerun()
+
 st.sidebar.markdown("""
     <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #334155;">
         <span style="font-family: 'Questrial', sans-serif; font-style: italic; font-size: 13px; color: #FFFFFF; border-bottom: 2px solid #EC2024; padding-bottom: 4px; display: inline-block;">

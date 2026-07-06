@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import shutil
 from datetime import datetime
 
 # Definir la ruta de la base de datos en el mismo directorio del proyecto
@@ -168,6 +169,22 @@ def eliminar_proveedor(id_prov):
     cursor.execute("DELETE FROM proveedores WHERE id = ?", (id_prov,))
     conn.commit()
     conn.close()
+
+def limpiar_base_datos():
+    """Borra todos los registros, proveedores y archivos, reiniciando el sistema a su estado de fábrica."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM historial_reportes")
+    cursor.execute("DELETE FROM proveedores")
+    conn.commit()
+    conn.close()
+    
+    # Reiniciar la estructura de expedientes (borrar todo físicamente)
+    if os.path.exists(EXPEDIENTES_DIR):
+        shutil.rmtree(EXPEDIENTES_DIR)
+    
+    # Recrear estructura y proveedores por defecto
+    init_db()
 
 # Inicializar al importar para asegurar que la tabla existe
 init_db()
