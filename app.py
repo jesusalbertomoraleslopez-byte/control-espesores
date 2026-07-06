@@ -666,7 +666,7 @@ if opcion_menu == "📊 Suite de Análisis":
                 
                 # --- COMPONENTE DE ACCIÓN FINAL: BOTÓN DE DESCARGA PDF ---
                 st.subheader("📄 Entregables de Ingeniería de Calidad")
-                pdf_bytes = crear_pdf_formal(st.session_state["df_calculado"], tol_proveedor, df_raw=st.session_state.get("df_raw_excel"))
+                pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor, df_raw=st.session_state.get("df_raw_excel"))
                 st.download_button(
                     label="📄 DESCARGAR REPORTE PDF DE CONTROL CORPORATIVO",
                     data=pdf_bytes.getvalue(),
