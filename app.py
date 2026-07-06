@@ -1145,38 +1145,17 @@ elif opcion_menu == "🔍 Historial de Reportes":
         <strong>{rec_sel['proveedor']}</strong> bajo el Folio Oficial <strong>{rec_sel['folio']}</strong>.
     </p>
     
-    <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
-        <thead>
-            <tr style="background-color: #111111; color: #FFFFFF;">
-                <th colspan="2" style="padding: 10px; text-align: left; border: 1px solid #D2D3D5;">
-                    📋 RESUMEN DE INSPECCIÓN Y DICTAMEN
-                </th>
-            </tr>
-        </thead>
+    <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin: 12px 0; font-size: 13px; line-height: 1.2;">
         <tbody>
-            <tr>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA; width: 40%;"><b>Proveedor Ofertante:</b></td>
-                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['proveedor']}</td>
+            <tr style="background-color: #F8F9FA;">
+                <td style="padding: 6px; border: 1px solid #D2D3D5; width: 33%;"><b>Proveedor:</b> {rec_sel['proveedor']}</td>
+                <td style="padding: 6px; border: 1px solid #D2D3D5; width: 33%;"><b>Certificado/Lote:</b> {rec_sel['certificado_info']}</td>
+                <td style="padding: 6px; border: 1px solid #D2D3D5; width: 34%;"><b>Total Rollos:</b> {rec_sel['total_rollos']}</td>
             </tr>
             <tr>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Certificado / Lote:</b></td>
-                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['certificado_info']}</td>
-            </tr>
-            <tr>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Total Rollos Analizados:</b></td>
-                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['total_rollos']}</td>
-            </tr>
-            <tr>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Rollos Aceptados:</b></td>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; color: green; font-weight: bold;">{rec_sel['aceptados']}</td>
-            </tr>
-            <tr>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Rollos Rechazados:</b></td>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; color: {'red' if rec_sel['rechazados'] > 0 else 'green'}; font-weight: bold;">{rec_sel['rechazados']}</td>
-            </tr>
-            <tr>
-                <td style="padding: 8px; border: 1px solid #D2D3D5; background-color: #F8F9FA;"><b>Riesgo Promedio del Suministro:</b></td>
-                <td style="padding: 8px; border: 1px solid #D2D3D5;">{rec_sel['riesgo_promedio']:.2f}%</td>
+                <td style="padding: 6px; border: 1px solid #D2D3D5; color: green; font-weight: bold;"><b>Aceptados:</b> {rec_sel['aceptados']}</td>
+                <td style="padding: 6px; border: 1px solid #D2D3D5; color: {'red' if rec_sel['rechazados'] > 0 else 'green'}; font-weight: bold;"><b>Rechazados:</b> {rec_sel['rechazados']}</td>
+                <td style="padding: 6px; border: 1px solid #D2D3D5;"><b>Riesgo Promedio:</b> {rec_sel['riesgo_promedio']:.2f}%</td>
             </tr>
         </tbody>
     </table>
