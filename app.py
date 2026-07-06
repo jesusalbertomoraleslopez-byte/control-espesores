@@ -719,7 +719,9 @@ if opcion_menu == "📊 Suite de Análisis":
                             errors="ignore"
                         )
                         if paste_result.image_data is not None:
-                            email_img_data = paste_result.image_data
+                            img_byte_arr = io.BytesIO()
+                            paste_result.image_data.save(img_byte_arr, format='PNG')
+                            email_img_data = img_byte_arr.getvalue()
                             email_img_name = "Captura_Portapapeles.png"
                     
                     if email_img_data is not None:
