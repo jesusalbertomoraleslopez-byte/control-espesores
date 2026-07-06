@@ -58,9 +58,9 @@ def crear_pdf_formal(df_final, tol_p):
     story = []
     styles = getSampleStyleSheet()
     
-    t_st = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#2b579a'), spaceAfter=12)
+    t_st = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#EC2024'), spaceAfter=12)
     m_st = ParagraphStyle('DocMeta', fontName='Helvetica', fontSize=10, textColor=colors.HexColor('#444'), spaceAfter=4)
-    h2_st = ParagraphStyle('SectionH2', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#2b579a'), spaceBefore=12, spaceAfter=6)
+    h2_st = ParagraphStyle('SectionH2', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#EC2024'), spaceBefore=12, spaceAfter=6)
     h3_st = ParagraphStyle('SectionH3', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#222222'), spaceBefore=8, spaceAfter=4)
     h_style = ParagraphStyle('HStyle', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=1)
     c_style = ParagraphStyle('CStyle', fontName='Helvetica', fontSize=9, alignment=1)
@@ -80,7 +80,7 @@ def crear_pdf_formal(df_final, tol_p):
             Paragraph(f"{f['Espesor Real (in)']:.4f}\"", c_style), Paragraph(f"{f['% de Riesgo']:.2f}%", c_style), Paragraph(f['Riesgo'], c_style)
         ])
     t_1 = Table(t_rollos_d, colWidths=[90, 100, 70, 90, 80, 100])
-    t_1.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2b579a')), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3'))]))
+    t_1.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#111111')), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D3D3D3'))]))
     story.append(t_1)
     
     # 2. Análisis jerárquico estructurado
@@ -94,7 +94,7 @@ def crear_pdf_formal(df_final, tol_p):
         
         # Estructura limpia sin la columna 'Espesor Original' en los desgloses
         t_group_d = [[Paragraph("Número Rollo", h_style), Paragraph("Espesor Medido (in)", h_style), Paragraph("Desviación Real", h_style), Paragraph("Probabilidad de Fallo", h_style), Paragraph("Dictamen Final", h_style)]]
-        est_estilo_grupo = [('BACKGROUND', (0,0), (-1,0), colors.HexColor('#708090')), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#A0A0A0'))]
+        est_estilo_grupo = [('BACKGROUND', (0,0), (-1,0), colors.HexColor('#111111')), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#A0A0A0'))]
         
         for idx_fila, (_, fila) in enumerate(group.iterrows()):
             fila_pdf = idx_fila + 1
@@ -136,7 +136,7 @@ def crear_pdf_formal(df_final, tol_p):
             plt.axvline(0, color='darkgreen', linestyle='--')
             plt.axvline(TOLERANCIA_INTERNA, color='red', linestyle=':')
             plt.axvline(-TOLERANCIA_INTERNA, color='red', linestyle=':')
-            plt.title(f"{mat} - {calibre} - Nominal: {nominal:.3f}\"", fontsize=10, color='#2b579a', weight='bold')
+            plt.title(f"{mat} - {calibre} - Nominal: {nominal:.3f}\"", fontsize=10, color='#EC2024', weight='bold')
             plt.legend(loc="upper right", fontsize=7)
             plt.grid(True, linestyle=':', alpha=0.5)
             plt.tight_layout()
@@ -162,26 +162,211 @@ def crear_pdf_formal(df_final, tol_p):
     doc.build(story)
     buffer.seek(0)
     return buffer
-st.title("⚙️ Suite Interactive de Riesgo y Control de Suministros")
+# Inyección de Estilos CSS Corporativos Oficiales
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Questrial&display=swap');
+
+    /* Fuentes globales y fondo claro */
+    html, body, [class*="css"], .stApp {
+        font-family: 'Questrial', sans-serif !important;
+        background-color: #FFFFFF !important;
+    }
+
+    h1, h2, h3, h4, h5, h6, .main-title {
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 700 !important;
+        color: #111111 !important;
+    }
+
+    /* Barra lateral corporativa en Negro profundo #111111 */
+    [data-testid="stSidebar"] {
+        background-color: #111111 !important;
+        border-right: 1px solid #1E293B !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p, 
+    [data-testid="stSidebar"] span, 
+    [data-testid="stSidebar"] label {
+        color: #FFFFFF !important;
+        font-family: 'Questrial', sans-serif !important;
+    }
+    
+    /* Botones de navegación en barra lateral */
+    [data-testid="stSidebar"] div[role="radiogroup"] label {
+        color: #FFFFFF !important;
+        font-size: 14px !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+        color: #EC2024 !important;
+    }
+
+    /* Estilos para inputs de contraseña o textos en barra lateral */
+    [data-testid="stSidebar"] input {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
+        border-color: #334155 !important;
+    }
+    [data-testid="stSidebar"] input:focus {
+        border-color: #EC2024 !important;
+    }
+
+    /* Estilo de Botones Oficiales - Rojo Corporativo #EC2024 */
+    div.stButton > button,
+    div.stDownloadButton > button,
+    div.stFormSubmitButton > button,
+    button[data-testid="baseButton-secondary"]:not([role="tab"]):not([data-baseweb="tab"]),
+    button[data-testid="baseButton-primary"]:not([role="tab"]):not([data-baseweb="tab"]),
+    button[kind="secondary"]:not([role="tab"]):not([data-baseweb="tab"]),
+    button[kind="primary"]:not([role="tab"]):not([data-baseweb="tab"]) {
+        background-color: #EC2024 !important;
+        color: #FFFFFF !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 700 !important;
+        border-radius: 4px !important;
+        border: 1px solid #EC2024 !important;
+        padding: 8px 20px !important;
+        transition: all 0.3s ease !important;
+        text-transform: uppercase;
+        font-size: 13px !important;
+    }
+    div.stButton > button:hover,
+    div.stDownloadButton > button:hover,
+    div.stFormSubmitButton > button:hover,
+    button[data-testid="baseButton-secondary"]:not([role="tab"]):not([data-baseweb="tab"]):hover,
+    button[data-testid="baseButton-primary"]:not([role="tab"]):not([data-baseweb="tab"]):hover,
+    button[kind="secondary"]:not([role="tab"]):not([data-baseweb="tab"]):hover,
+    button[kind="primary"]:not([role="tab"]):not([data-baseweb="tab"]):hover {
+        background-color: #FFFFFF !important;
+        color: #EC2024 !important;
+        border: 1px solid #EC2024 !important;
+        box-shadow: 0 4px 12px rgba(236, 32, 36, 0.15) !important;
+    }
+
+    /* Tarjetas de Métricas */
+    [data-testid="metric-container"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #D2D3D5 !important;
+        border-left: 5px solid #EC2024 !important;
+        border-radius: 4px !important;
+        padding: 12px 18px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+    }
+    [data-testid="metric-container"] label {
+        font-family: 'Montserrat', sans-serif !important;
+        color: #111111 !important;
+        font-weight: 500 !important;
+    }
+    [data-testid="metric-container"] div[data-testid="stMetricValue"] {
+        font-family: 'Montserrat', sans-serif !important;
+        color: #EC2024 !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Configuración del Editor de Datos y Tablas */
+    .stTable header, th {
+        background-color: #111111 !important;
+        color: #FFFFFF !important;
+        font-family: 'Montserrat', sans-serif !important;
+    }
+    
+    /* Inputs y Selectores */
+    div[data-baseweb="input"], div[data-baseweb="select"], textarea {
+        border-color: #D2D3D5 !important;
+        border-radius: 4px !important;
+    }
+    div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within {
+        border-color: #EC2024 !important;
+    }
+
+    /* Reset del File Uploader para encajar en el estilo secundario */
+    [data-testid="stFileUploader"] button,
+    .stFileUploader button {
+        background-color: #FFFFFF !important;
+        color: #111111 !important;
+        border: 1px solid #D2D3D5 !important;
+        border-radius: 4px !important;
+        padding: 6px 12px !important;
+        font-weight: 500 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    
+    [data-testid="stFileUploader"] button *,
+    .stFileUploader button * {
+        background-color: transparent !important;
+        color: #111111 !important;
+    }
+    
+    [data-testid="stFileUploader"] button:hover,
+    .stFileUploader button:hover {
+        background-color: #F8F9FA !important;
+        border-color: #EC2024 !important;
+        color: #EC2024 !important;
+    }
+    
+    [data-testid="stFileUploader"] button:hover *,
+    .stFileUploader button:hover * {
+        color: #EC2024 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+import os
+
+# Renderizado de Logo en Barra Lateral
+logo_neg_path = "logo_sigrama_negative.png"
+logo_pos_path = "logo_sigrama.png"
+if os.path.exists(logo_neg_path):
+    st.sidebar.image(logo_neg_path, use_container_width=True)
+elif os.path.exists(logo_pos_path):
+    st.sidebar.image(logo_pos_path, use_container_width=True)
+else:
+    st.sidebar.subheader("INDUSTRIA SIGRAMA")
+
+# Sección de Perfil de Usuario
+st.sidebar.markdown("""
+<div style="background-color: #1E293B; border: 1px solid #334155; padding: 12px; border-radius: 6px; margin-bottom: 15px; margin-top: 10px;">
+    <p style="margin: 0; color: #FFFFFF; font-family: 'Questrial', sans-serif; font-size: 13px;">
+        👤 Usuario: <b>Ingeniero de Calidad</b>
+    </p>
+    <p style="margin: 5px 0 0 0; color: #EC2024; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: bold;">
+        🔑 Rol: Administrador de Planta
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+st.sidebar.write("---")
+st.sidebar.subheader("🛠️ Parámetros de Control")
+tol_proveedor = st.sidebar.slider(
+    'Desviación Proveedor Ofertada (±):',
+    min_value=0.001, max_value=0.008, value=0.006, step=0.001, format="%.3f"
+)
+
+st.sidebar.write("---")
+st.sidebar.subheader("📋 Acciones y Plantillas")
+excel_data = generar_excel_plantilla()
+st.sidebar.download_button(
+    label="📝 Descargar Plantilla Excel",
+    data=excel_data,
+    file_name="plantilla_rollos.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    use_container_width=True
+)
+
+st.sidebar.markdown("""
+    <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #334155;">
+        <span style="font-family: 'Questrial', sans-serif; font-style: italic; font-size: 13px; color: #FFFFFF; border-bottom: 2px solid #EC2024; padding-bottom: 4px; display: inline-block;">
+            Ingeniería que da resultados!!
+        </span>
+    </div>
+""", unsafe_allow_html=True)
+
+# Main panel slogan y contenido
+st.markdown('<p style="text-align: center; font-size: 16px; font-weight: bold; color: #EC2024; font-family: \'Montserrat\', sans-serif; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;">SOLUCIONES QUE TRANSFORMAN TU EMPRESA</p>', unsafe_allow_html=True)
+st.markdown('<hr style="border: 1px solid #EC2024; margin: 15px 0;">', unsafe_allow_html=True)
+
+st.title("⚙️ Suite de Riesgo y Control de Suministros")
 st.markdown(f"**Estándar Fijo Planta (Norma Interna de Diseño):** `±{TOLERANCIA_INTERNA}\"`")
-
-col_control1, col_control2 = st.columns(2)
-
-with col_control1:
-    tol_proveedor = st.slider(
-        'Desviación Proveedor Ofertada (±):',
-        min_value=0.001, max_value=0.008, value=0.006, step=0.001, format="%.3f"
-    )
-
-with col_control2:
-    st.markdown("**Flujo de Trabajo Corporativo**")
-    excel_data = generar_excel_plantilla()
-    st.download_button(
-        label="📝 Descargar Plantilla Excel Estándar",
-        data=excel_data,
-        file_name="plantilla_rollos.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
 
 archivo_cargado = st.file_uploader("📥 Cargar datos industriales para simulación (Excel)", type=["xlsx"])
 if archivo_cargado is not None:
@@ -213,7 +398,7 @@ if archivo_cargado is not None:
         
         if not df_datos_cargados.empty:
             # ======================================================================
-            # MODIFICACIÓN 1: EVALUACIÓN DE RIESGO ESTADÍSTICO POR ROLLO (GAUSS)
+            # EVALUACIÓN DE RIESGO ESTADÍSTICO POR ROLLO (GAUSS)
             # ======================================================================
             est_l = []
             riesgo_l = []
@@ -243,8 +428,22 @@ if archivo_cargado is not None:
             
             # Incorporación de nuevas variables calculadas
             df_datos_cargados['% de Riesgo'] = riesgo_l
-            df_datos_cargados['Riesgo'] = est_l # Estatus Planta cambia de título a Riesgo
+            df_datos_cargados['Riesgo'] = est_l
             df_datos_cargados['Dictamen Final'] = dictamen_final_l
+            
+            # Despliegue de métricas clave (Estilo Tarjetas Corporativas)
+            total_rollos = len(df_datos_cargados)
+            aceptados = len(df_datos_cargados[df_datos_cargados["Dictamen Final"] == "ACEPTADO"])
+            rechazados = len(df_datos_cargados[df_datos_cargados["Dictamen Final"] == "NO ACEPTADO"])
+            prom_riesgo = df_datos_cargados["% de Riesgo"].mean()
+            
+            st.write("---")
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            col_m1.metric("Total Rollos Analizados", f"{total_rollos}")
+            col_m2.metric("Rollos Aceptados", f"{aceptados}")
+            col_m3.metric("Rollos Rechazados", f"{rechazados}")
+            col_m4.metric("Riesgo Promedio", f"{prom_riesgo:.2f}%")
+            st.write("---")
             
             # RENDERIZADO TABLA 1 (MODIFICACIÓN 1 EXPOSITIVA)
             st.subheader("📊 Calibración del Muestreo por Unidad (Rollo por Rollo)")
@@ -253,7 +452,7 @@ if archivo_cargado is not None:
             st.dataframe(styler_individual, use_container_width=True)
             
             # ======================================================================
-            # MODIFICACIÓN 2: CLASIFICACIÓN JERÁRQUICA Y SE REMOVE "ESPESOR ORIGINAL"
+            # CLASIFICACIÓN JERÁRQUICA Y SE REMOVE "ESPESOR ORIGINAL"
             # ======================================================================
             st.subheader("📋 Análisis Clasificado Estructurado por Espesor Nominal Teórico")
             df_grouped = df_datos_cargados.groupby(['Material', 'Calibre', 'Nominal Estándar'])
@@ -270,7 +469,7 @@ if archivo_cargado is not None:
                 styler_grupo = df_vista_grupo.style.format(formatos).map(colorear_matriz_resumen, subset=['Dictamen Final'])
                 st.dataframe(styler_grupo, use_container_width=True)
             # ======================================================================
-            # MODIFICACIÓN 3: GENERACIÓN DE UNA GRÁFICA AISLADA POR CADA ESPESOR
+            # GENERACIÓN DE UNA GRÁFICA AISLADA POR CADA ESPESOR
             # ======================================================================
             st.subheader("📈 Distribuciones Probabilísticas por Especificación Técnica")
             
@@ -312,10 +511,11 @@ if archivo_cargado is not None:
                 label="📥 Descargar Reporte PDF de Control Corporativo",
                 data=pdf_buffer,
                 file_name=f"Reporte_Riesgo_Espesores_{datetime.now().strftime('%H%M')}.pdf",
-                mime="application/pdf"
+                mime="application/pdf",
+                use_container_width=True
             )
             
     except Exception as e:
         st.error(f"❌ Error crítico en el procesamiento del lote técnico: {str(e)}")
 else:
-    st.info("💡 Tablero listo. Por favor, cargue un archivo de Excel utilizando la plantilla estándar para iniciar las simulaciones estadísticas.")
+    st.info("💡 Tablero listo. Por favor, cargue un archivo de Excel utilizando la plantilla estándar en la barra lateral para iniciar las simulaciones estadísticas.")
