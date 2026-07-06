@@ -1,0 +1,13 @@
+# Ignore SQLite database
+espesores_historial.db
+
+# Ignore uploaded expedientes files
+expedientes/
+
+# Ignore python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.st/
+.streamlit/

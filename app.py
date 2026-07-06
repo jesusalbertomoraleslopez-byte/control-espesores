@@ -5,6 +5,10 @@ import plotly.graph_objects as go
 import scipy.stats as stats
 from datetime import datetime
 import io
+import database
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 1. CONFIGURACIÓN ÚNICA DE LA PÁGINA (Debe ser la primera instrucción de Streamlit)
 st.set_page_config(page_title="Suite de Riesgo y Control de Espesores", layout="wide")
@@ -27,7 +31,7 @@ ESTANDAR = {
 TOLERANCIA_INTERNA = 0.008
 
 # Despliegue de banner corporativo principal
-st.image("BANNER CONTROL DE ESPESORES APP.png", use_container_width=True)
+st.image(os.path.join(BASE_DIR, "BANNER CONTROL DE ESPESORES APP.png"), use_container_width=True)
 def colorear_matriz_resumen(v):
     """Aplica formato semafórico condicional estricto: Verde para aceptados y Rojo para riesgosos/rechazados."""
     if not isinstance(v, str): return ''
@@ -38,18 +42,66 @@ def colorear_matriz_resumen(v):
     return 'background-color: #FFC7CE; color: #9C0006; font-weight: bold;'
 
 def generar_excel_plantilla():
-    """Construye el archivo binario de Excel en la memoria RAM para descarga dinámica inmediata."""
+    """Construye el archivo binario de Excel en la memoria RAM con el formato corporativo oficial."""
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    
     datos = {
         "Numero_Rollo": ["ROLLO-A", "ROLLO-B", "ROLLO-C"],
         "Material": ["Galvanizado", "Galvanizado", "Decapado"],
         "Calibre": [12, 16, 14],
         "Espesor_Medido": [0.1028, 1.47, 1.85],
-        "Unidad": ["Pulgadas", "Milimetros", "Milimetros"]
+        "Unidad": ["Pulgadas", "Milimetros", "Milimetros"],
+        "Tolerancia_Proveedor": [0.006, 0.005, 0.006]
     }
-    output = io.BytesIO()
+    
     df_tpl = pd.DataFrame(datos)
+    output = io.BytesIO()
+    
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_tpl.to_excel(writer, index=False)
+        df_tpl.to_excel(writer, index=False, sheet_name="Datos_Simulacion")
+        workbook = writer.book
+        worksheet = workbook["Datos_Simulacion"]
+        
+        # Estilos oficiales Sigrama
+        header_fill = PatternFill(start_color="111111", end_color="111111", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        data_font = Font(name="Calibri", size=11, color="111111")
+        center_align = Alignment(horizontal="center", vertical="center")
+        left_align = Alignment(horizontal="left", vertical="center")
+        
+        thin_side = Side(border_style="thin", color="D2D3D5")
+        cell_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        
+        # Formatear cabeceras
+        for col_num, col_name in enumerate(df_tpl.columns, 1):
+            cell = worksheet.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = center_align
+            cell.border = cell_border
+            
+        # Formatear celdas de datos
+        for row_num in range(2, len(df_tpl) + 2):
+            for col_num in range(1, len(df_tpl.columns) + 1):
+                cell = worksheet.cell(row=row_num, column=col_num)
+                cell.font = data_font
+                cell.border = cell_border
+                # Alineación
+                if col_num in [1, 2]: # Rollo, Material
+                    cell.alignment = left_align
+                else: # Calibre, Espesor, Unidad, Tolerancia
+                    cell.alignment = center_align
+                    
+        # Autoajustar ancho de columnas para evitar cortes de texto (###)
+        for col in worksheet.columns:
+            max_len = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                if cell.value is not None:
+                    max_len = max(max_len, len(str(cell.value)))
+            # Margen de seguridad para el ancho
+            worksheet.column_dimensions[col_letter].width = max(max_len + 4, 16)
+            
     return output.getvalue()
 def crear_pdf_formal(df_final, tol_p):
     """Genera la estructura del documento técnico formal incorporando los nuevos formatos de color y títulos."""
@@ -129,8 +181,10 @@ def crear_pdf_formal(df_final, tol_p):
             
             for _, fila in group.iterrows():
                 m_desv = fila['Espesor Real (in)'] - nominal
-                y_g = stats.norm.pdf(x_desv, loc=m_desv, scale=sigma_p)
-                plt.plot(x_desv, y_g, label=f"{fila['Rollo']} ({fila['% de Riesgo']:.1f}%)", linewidth=1.5)
+                tol_r = fila.get('Tolerancia_Rollo', tol_p)
+                sigma_rollo = tol_r / 3.0
+                y_g = stats.norm.pdf(x_desv, loc=m_desv, scale=sigma_rollo)
+                plt.plot(x_desv, y_g, label=f"{fila['Rollo']} (Tol: ±{tol_r:.3f}\", {fila['% de Riesgo']:.1f}%)", linewidth=1.5)
                 
             plt.axvspan(-TOLERANCIA_INTERNA, TOLERANCIA_INTERNA, color='green', alpha=0.04)
             plt.axvline(0, color='darkgreen', linestyle='--')
@@ -314,8 +368,8 @@ st.markdown("""
 import os
 
 # Renderizado de Logo en Barra Lateral
-logo_neg_path = "logo_sigrama_negative.png"
-logo_pos_path = "logo_sigrama.png"
+logo_neg_path = os.path.join(BASE_DIR, "logo_sigrama_negative.png")
+logo_pos_path = os.path.join(BASE_DIR, "logo_sigrama.png")
 if os.path.exists(logo_neg_path):
     st.sidebar.image(logo_neg_path, use_container_width=True)
 elif os.path.exists(logo_pos_path):
@@ -336,9 +390,12 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 
 st.sidebar.write("---")
+opcion_menu = st.sidebar.radio("Módulos del Sistema:", ["📊 Suite de Análisis", "🔍 Historial de Reportes"])
+
+st.sidebar.write("---")
 st.sidebar.subheader("🛠️ Parámetros de Control")
 tol_proveedor = st.sidebar.slider(
-    'Desviación Proveedor Ofertada (±):',
+    'Tolerancia por Defecto (Fallback) (±):',
     min_value=0.001, max_value=0.008, value=0.006, step=0.001, format="%.3f"
 )
 
@@ -361,161 +418,370 @@ st.sidebar.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Main panel slogan y contenido
+# Slogan corporativo en Main Panel
 st.markdown('<p style="text-align: center; font-size: 16px; font-weight: bold; color: #EC2024; font-family: \'Montserrat\', sans-serif; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;">SOLUCIONES QUE TRANSFORMAN TU EMPRESA</p>', unsafe_allow_html=True)
 st.markdown('<hr style="border: 1px solid #EC2024; margin: 15px 0;">', unsafe_allow_html=True)
 
-st.title("⚙️ Suite de Riesgo y Control de Suministros")
-st.markdown(f"**Estándar Fijo Planta (Norma Interna de Diseño):** `±{TOLERANCIA_INTERNA}\"`")
+# Enrutamiento según navegación lateral
+if opcion_menu == "📊 Suite de Análisis":
+    st.title("⚙️ Suite de Riesgo y Control de Suministros")
+    st.markdown(f"**Estándar Fijo Planta (Norma Interna de Diseño):** `±{TOLERANCIA_INTERNA}\"`")
 
-archivo_cargado = st.file_uploader("📥 Cargar datos industriales para simulación (Excel)", type=["xlsx"])
-if archivo_cargado is not None:
-    try:
-        df = pd.read_excel(archivo_cargado)
-        res = []
-        
-        for _, f in df.iterrows():
-            mat = str(f["Material"]).strip()
-            cal = int(f["Calibre"])
-            if mat not in ESTANDAR or cal not in ESTANDAR[mat]:
-                continue
+    archivo_cargado = st.file_uploader("📥 Cargar datos industriales para simulación (Excel)", type=["xlsx"])
+    if archivo_cargado is not None:
+        try:
+            df = pd.read_excel(archivo_cargado)
+            res = []
             
-            med = float(f["Espesor_Medido"])
-            uni = str(f["Unidad"]).strip().lower()
-            esp_in = round(med * 0.0393701, 4) if ("mm" in uni or "mili" in uni) else med
+            # Buscar si existe columna de Tolerancia en el Excel
+            col_tol = None
+            for col in df.columns:
+                if col.strip().lower() in ["tolerancia_proveedor", "tolerancia", "tolerancia proveedor", "tolerancia ofertada"]:
+                    col_tol = col
+                    break
             
-            res.append({
-                "Rollo": str(f["Numero_Rollo"]),
-                "Material": mat,
-                "Calibre": f"CAL {cal}",
-                "Espesor Original": f"{med} {'mm' if 'mm' in uni else 'in'}",
-                "Espesor Real (in)": esp_in,
-                "Nominal Estándar": ESTANDAR[mat][cal],
-                "Desviación Real (in)": round(esp_in - ESTANDAR[mat][cal], 4)
-            })
-            
-        df_datos_cargados = pd.DataFrame(res)
-        
-        if not df_datos_cargados.empty:
-            # ======================================================================
-            # EVALUACIÓN DE RIESGO ESTADÍSTICO POR ROLLO (GAUSS)
-            # ======================================================================
-            est_l = []
-            riesgo_l = []
-            dictamen_final_l = []
-            sigma_individual = tol_proveedor / 3.0
-            
-            for _, fila in df_datos_cargados.iterrows():
-                med_individual = fila['Espesor Real (in)']
-                nom_individual = fila['Nominal Estándar']
+            for _, f in df.iterrows():
+                mat = str(f["Material"]).strip()
+                cal = int(f["Calibre"])
+                if mat not in ESTANDAR or cal not in ESTANDAR[mat]:
+                    continue
                 
-                p_inf_ind = stats.norm.cdf(nom_individual - TOLERANCIA_INTERNA, loc=med_individual, scale=sigma_individual)
-                p_sup_ind = 1.0 - stats.norm.cdf(nom_individual + TOLERANCIA_INTERNA, loc=med_individual, scale=sigma_individual)
-                riesgo_rollo_pct = (p_inf_ind + p_sup_ind) * 100
+                med = float(f["Espesor_Medido"])
+                uni = str(f["Unidad"]).strip().lower()
+                esp_in = round(med * 0.0393701, 4) if ("mm" in uni or "mili" in uni) else med
                 
-                riesgo_l.append(riesgo_rollo_pct)
+                # Tolerancia del rollo
+                tol_r = float(f[col_tol]) if (col_tol and pd.notna(f[col_tol])) else tol_proveedor
                 
-                # Clasificación micrométrica basada en probabilidad
-                if riesgo_rollo_pct < 1.0:
-                    est_l.append("RIESGO BAJO")
-                    dictamen_final_l.append("ACEPTADO")
-                elif riesgo_rollo_pct <= 5.0:
-                    est_l.append("RIESGO MODERADO")
-                    dictamen_final_l.append("ACEPTADO")
-                else:
-                    est_l.append("ALTO RIESGO")
-                    dictamen_final_l.append("NO ACEPTADO")
+                res.append({
+                    "Rollo": str(f["Numero_Rollo"]),
+                    "Material": mat,
+                    "Calibre": f"CAL {cal}",
+                    "Espesor Original": f"{med} {'mm' if 'mm' in uni else 'in'}",
+                    "Espesor Real (in)": esp_in,
+                    "Nominal Estándar": ESTANDAR[mat][cal],
+                    "Desviación Real (in)": round(esp_in - ESTANDAR[mat][cal], 4),
+                    "Tolerancia_Rollo": tol_r
+                })
+                
+            df_datos_cargados = pd.DataFrame(res)
             
-            # Incorporación de nuevas variables calculadas
-            df_datos_cargados['% de Riesgo'] = riesgo_l
-            df_datos_cargados['Riesgo'] = est_l
-            df_datos_cargados['Dictamen Final'] = dictamen_final_l
-            
-            # Despliegue de métricas clave (Estilo Tarjetas Corporativas)
-            total_rollos = len(df_datos_cargados)
-            aceptados = len(df_datos_cargados[df_datos_cargados["Dictamen Final"] == "ACEPTADO"])
-            rechazados = len(df_datos_cargados[df_datos_cargados["Dictamen Final"] == "NO ACEPTADO"])
-            prom_riesgo = df_datos_cargados["% de Riesgo"].mean()
-            
-            st.write("---")
-            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-            col_m1.metric("Total Rollos Analizados", f"{total_rollos}")
-            col_m2.metric("Rollos Aceptados", f"{aceptados}")
-            col_m3.metric("Rollos Rechazados", f"{rechazados}")
-            col_m4.metric("Riesgo Promedio", f"{prom_riesgo:.2f}%")
-            st.write("---")
-            
-            # RENDERIZADO TABLA 1 (MODIFICACIÓN 1 EXPOSITIVA)
-            st.subheader("📊 Calibración del Muestreo por Unidad (Rollo por Rollo)")
-            formatos = {'Espesor Real (in)': '{:.4f}"', 'Nominal Estándar': '{:.3f}"', 'Desviación Real (in)': '{:+.4f}"', '% de Riesgo': '{:.2f}%'}
-            styler_individual = df_datos_cargados.style.format(formatos).map(colorear_matriz_resumen, subset=['Riesgo'])
-            st.dataframe(styler_individual, use_container_width=True)
-            
-            # ======================================================================
-            # CLASIFICACIÓN JERÁRQUICA Y SE REMOVE "ESPESOR ORIGINAL"
-            # ======================================================================
-            st.subheader("📋 Análisis Clasificado Estructurado por Espesor Nominal Teórico")
-            df_grouped = df_datos_cargados.groupby(['Material', 'Calibre', 'Nominal Estándar'])
-            
-            for (material, calibre, nominal), grupo in df_grouped:
-                # Encabezado corregido con especificaciones y tolerancia aceptable
-                st.markdown(f"#### 🌐 {material} — `{calibre}` — Espesor Teórico: `{nominal:.3f}\"` | Tolerancia Aceptable: `±{TOLERANCIA_INTERNA:.3f}\"`")
+            if not df_datos_cargados.empty:
+                # ======================================================================
+                # EVALUACIÓN DE RIESGO ESTADÍSTICO POR ROLLO (GAUSS)
+                # ======================================================================
+                est_l = []
+                riesgo_l = []
+                dictamen_final_l = []
                 
-                # SE EXCLUYE COMPLETAMENTE 'Espesor Original' para la vista solicitada
-                columnas_vista = ['Rollo', 'Espesor Real (in)', 'Desviación Real (in)', '% de Riesgo', 'Dictamen Final']
-                df_vista_grupo = grupo[columnas_vista]
+                for _, fila in df_datos_cargados.iterrows():
+                    med_individual = fila['Espesor Real (in)']
+                    nom_individual = fila['Nominal Estándar']
+                    tol_r = fila['Tolerancia_Rollo']
+                    sigma_individual = tol_r / 3.0
+                    
+                    p_inf_ind = stats.norm.cdf(nom_individual - TOLERANCIA_INTERNA, loc=med_individual, scale=sigma_individual)
+                    p_sup_ind = 1.0 - stats.norm.cdf(nom_individual + TOLERANCIA_INTERNA, loc=med_individual, scale=sigma_individual)
+                    riesgo_rollo_pct = (p_inf_ind + p_sup_ind) * 100
+                    
+                    riesgo_l.append(riesgo_rollo_pct)
+                    
+                    # Clasificación micrométrica basada en probabilidad
+                    if riesgo_rollo_pct < 1.0:
+                        est_l.append("RIESGO BAJO")
+                        dictamen_final_l.append("ACEPTADO")
+                    elif riesgo_rollo_pct <= 5.0:
+                        est_l.append("RIESGO MODERADO")
+                        dictamen_final_l.append("ACEPTADO")
+                    else:
+                        est_l.append("ALTO RIESGO")
+                        dictamen_final_l.append("NO ACEPTADO")
                 
-                # Renderizado con colores condicionales (Verde = ACEPTADO, Rojo = NO ACEPTADO)
-                styler_grupo = df_vista_grupo.style.format(formatos).map(colorear_matriz_resumen, subset=['Dictamen Final'])
-                st.dataframe(styler_grupo, use_container_width=True)
-            # ======================================================================
-            # GENERACIÓN DE UNA GRÁFICA AISLADA POR CADA ESPESOR
-            # ======================================================================
-            st.subheader("📈 Distribuciones Probabilísticas por Especificación Técnica")
-            
-            for (material, calibre, nominal), grupo in df_grouped:
-                st.markdown(f"##### Análisis Gaussiano Aislado: `{material} — {calibre} ({nominal:.3f}\")`")
+                # Incorporación de nuevas variables calculadas
+                df_datos_cargados['% de Riesgo'] = riesgo_l
+                df_datos_cargados['Riesgo'] = est_l
+                df_datos_cargados['Dictamen Final'] = dictamen_final_l
                 
-                fig = go.Figure()
-                x_desv = np.linspace(-0.015, 0.015, 400)
+                # Despliegue de métricas clave (Estilo Tarjetas Corporativas)
+                total_rollos = len(df_datos_cargados)
+                aceptados = len(df_datos_cargados[df_datos_cargados["Dictamen Final"] == "ACEPTADO"])
+                rechazados = len(df_datos_cargados[df_datos_cargados["Dictamen Final"] == "NO ACEPTADO"])
+                prom_riesgo = df_datos_cargados["% de Riesgo"].mean()
                 
-                # Inyección exclusiva de curvas correspondientes a este espesor particular
-                for _, fila in grupo.iterrows():
-                    m_desv = fila['Espesor Real (in)'] - nominal
-                    y_g = stats.norm.pdf(x_desv, loc=m_desv, scale=sigma_individual)
-                    fig.add_trace(go.Scatter(
-                        x=x_desv, y=y_g, mode='lines', 
-                        name=f"{fila['Rollo']} (Riesgo: {fila['% de Riesgo']:.1f}%)",
-                        line=dict(width=2.5)
-                    ))
+                st.write("---")
+                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                col_m1.metric("Total Rollos Analizados", f"{total_rollos}")
+                col_m2.metric("Rollos Aceptados", f"{aceptados}")
+                col_m3.metric("Rollos Rechazados", f"{rechazados}")
+                col_m4.metric("Riesgo Promedio", f"{prom_riesgo:.2f}%")
+                st.write("---")
                 
-                # Delimitadores de franja interna de diseño de planta
-                fig.add_vrect(x0=-TOLERANCIA_INTERNA, x1=TOLERANCIA_INTERNA, fillcolor="green", opacity=0.05, line_width=0)
-                fig.add_vline(x=0, line_dash="dash", line_color="darkgreen")
-                fig.add_vline(x=TOLERANCIA_INTERNA, line_color="red", line_width=1.5, line_dash="dot")
-                fig.add_vline(x=-TOLERANCIA_INTERNA, line_color="red", line_width=1.5, line_dash="dot")
+                # RENDERIZADO TABLA 1 (MODIFICACIÓN 1 EXPOSITIVA)
+                st.subheader("📊 Calibración del Muestreo por Unidad (Rollo por Rollo)")
+                formatos = {'Espesor Real (in)': '{:.4f}"', 'Nominal Estándar': '{:.3f}"', 'Desviación Real (in)': '{:+.4f}"', '% de Riesgo': '{:.2f}%', 'Tolerancia_Rollo': '{:.3f}"'}
+                styler_individual = df_datos_cargados.style.format(formatos).map(colorear_matriz_resumen, subset=['Riesgo'])
+                st.dataframe(styler_individual, use_container_width=True)
                 
-                fig.update_layout(
-                    xaxis_title="Desviación Micrométrica Real (in)", 
-                    yaxis_title="Densidad Probabilística de Gauss", 
-                    height=300, 
-                    margin=dict(l=40, r=40, t=15, b=40),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                # ======================================================================
+                # CLASIFICACIÓN JERÁRQUICA Y SE REMOVE "ESPESOR ORIGINAL"
+                # ======================================================================
+                st.subheader("📋 Análisis Clasificado Estructurado por Espesor Nominal Teórico")
+                df_grouped = df_datos_cargados.groupby(['Material', 'Calibre', 'Nominal Estándar'])
+                
+                for (material, calibre, nominal), grupo in df_grouped:
+                    # Encabezado corregido con especificaciones y tolerancia aceptable
+                    st.markdown(f"#### 🌐 {material} — `{calibre}` — Espesor Teórico: `{nominal:.3f}\"` | Tolerancia Aceptable: `±{TOLERANCIA_INTERNA:.3f}\"`")
+                    
+                    # SE EXCLUYE COMPLETAMENTE 'Espesor Original' para la vista solicitada
+                    columnas_vista = ['Rollo', 'Espesor Real (in)', 'Desviación Real (in)', 'Tolerancia_Rollo', '% de Riesgo', 'Dictamen Final']
+                    df_vista_grupo = grupo[columnas_vista]
+                    
+                    # Renderizado con colores condicionales (Verde = ACEPTADO, Rojo = NO ACEPTADO)
+                    styler_grupo = df_vista_grupo.style.format(formatos).map(colorear_matriz_resumen, subset=['Dictamen Final'])
+                    st.dataframe(styler_grupo, use_container_width=True)
+                # ======================================================================
+                # GENERACIÓN DE UNA GRÁFICA AISLADA POR CADA ESPESOR
+                # ======================================================================
+                st.subheader("📈 Distribuciones Probabilísticas por Especificación Técnica")
+                
+                for (material, calibre, nominal), grupo in df_grouped:
+                    st.markdown(f"##### Análisis Gaussiano Aislado: `{material} — {calibre} ({nominal:.3f}\")`")
+                    
+                    fig = go.Figure()
+                    x_desv = np.linspace(-0.015, 0.015, 400)
+                    
+                    # Inyección exclusiva de curvas correspondientes a este espesor particular
+                    for _, fila in grupo.iterrows():
+                        m_desv = fila['Espesor Real (in)'] - nominal
+                        tol_r = fila.get('Tolerancia_Rollo', tol_proveedor)
+                        sigma_individual = tol_r / 3.0
+                        y_g = stats.norm.pdf(x_desv, loc=m_desv, scale=sigma_individual)
+                        fig.add_trace(go.Scatter(
+                            x=x_desv, y=y_g, mode='lines', 
+                            name=f"{fila['Rollo']} (Tol: ±{tol_r:.3f}\", Riesgo: {fila['% de Riesgo']:.1f}%)",
+                            line=dict(width=2.5)
+                        ))
+                    
+                    # Delimitadores de franja interna de diseño de planta
+                    fig.add_vrect(x0=-TOLERANCIA_INTERNA, x1=TOLERANCIA_INTERNA, fillcolor="green", opacity=0.05, line_width=0)
+                    fig.add_vline(x=0, line_dash="dash", line_color="darkgreen")
+                    fig.add_vline(x=TOLERANCIA_INTERNA, line_color="red", line_width=1.5, line_dash="dot")
+                    fig.add_vline(x=-TOLERANCIA_INTERNA, line_color="red", line_width=1.5, line_dash="dot")
+                    
+                    fig.update_layout(
+                        xaxis_title="Desviación Micrométrica Real (in)", 
+                        yaxis_title="Densidad Probabilística de Gauss", 
+                        height=300, 
+                        margin=dict(l=40, r=40, t=15, b=40),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # --- COMPONENTE DE ACCIÓN FINAL: BOTÓN DE DESCARGA PDF ---
+                st.subheader("📄 Entregables de Ingeniería de Calidad")
+                pdf_buffer = crear_pdf_formal(df_datos_cargados, tol_proveedor)
+                st.download_button(
+                    label="📥 Descargar Reporte PDF de Control Corporativo",
+                    data=pdf_buffer,
+                    file_name=f"Reporte_Riesgo_Espesores_{datetime.now().strftime('%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                
+                # ======================================================================
+                # FORMULARIO DE GUARDADO Y REGISTRO EN EL HISTORIAL
+                # ======================================================================
+                st.write("---")
+                st.subheader("💾 Guardar Reporte en el Historial del Sistema")
+                st.markdown("Guarde los resultados del análisis de la propuesta del proveedor junto con los documentos de respaldo para auditoría y rastreo futuro.")
+                
+                with st.form("form_guardar_historial", clear_on_submit=False):
+                    col_h1, col_h2 = st.columns(2)
+                    with col_h1:
+                        prov_input = st.text_input("🏢 Proveedor Ofertante:", value="", placeholder="Ej. Ternium, Nucor, AHMSA...")
+                    with col_h2:
+                        cert_info_input = st.text_input("📑 Información del Certificado (ID/Número):", value="", placeholder="Ej. Certificado N° TX-98810")
+                        
+                    col_f1, col_f2 = st.columns(2)
+                    with col_f1:
+                        cert_file_input = st.file_uploader("📂 Archivo de Certificado de Calidad (PDF)", type=["pdf"])
+                    with col_f2:
+                        email_img_input = st.file_uploader("📧 Captura del Correo de Compras (Imagen)", type=["png", "jpg", "jpeg"])
+                        
+                    btn_save = st.form_submit_button("Confirmar y Guardar en Base de Datos")
+                    
+                    if btn_save:
+                        if not prov_input.strip():
+                            st.error("❌ El nombre del proveedor es obligatorio.")
+                        elif not cert_file_input:
+                            st.error("❌ El archivo del Certificado de Calidad en formato PDF es obligatorio.")
+                        elif not email_img_input:
+                            st.error("❌ La captura de pantalla del correo de Compras es obligatoria.")
+                        else:
+                            with st.spinner("Guardando registro y archivos en el expediente..."):
+                                import shutil
+                                import database
+                                
+                                # 1. Generar Folio
+                                nuevo_folio = database.generar_siguiente_folio()
+                                folder_exp = os.path.join(database.EXPEDIENTES_DIR, nuevo_folio)
+                                os.makedirs(folder_exp, exist_ok=True)
+                                
+                                # 2. Guardar archivos cargados
+                                cert_ext = os.path.splitext(cert_file_input.name)[1]
+                                email_ext = os.path.splitext(email_img_input.name)[1]
+                                
+                                ruta_cert_dest = os.path.join(folder_exp, f"Certificado_{nuevo_folio}{cert_ext}")
+                                ruta_correo_dest = os.path.join(folder_exp, f"Correo_{nuevo_folio}{email_ext}")
+                                ruta_reporte_dest = os.path.join(folder_exp, f"Reporte_Tecnico_{nuevo_folio}.pdf")
+                                
+                                with open(ruta_cert_dest, "wb") as f_out:
+                                    f_out.write(cert_file_input.read())
+                                with open(ruta_correo_dest, "wb") as f_out:
+                                    f_out.write(email_img_input.read())
+                                    
+                                # 3. Generar y guardar PDF de reporte técnico
+                                report_pdf_bytes = crear_pdf_formal(df_datos_cargados, tol_proveedor)
+                                with open(ruta_reporte_dest, "wb") as f_out:
+                                    f_out.write(report_pdf_bytes.getvalue())
+                                    
+                                # 4. Registrar en base de datos
+                                # Rutas relativas para portabilidad de almacenamiento
+                                rel_cert = os.path.relpath(ruta_cert_dest, database.BASE_DIR)
+                                rel_correo = os.path.relpath(ruta_correo_dest, database.BASE_DIR)
+                                rel_reporte = os.path.relpath(ruta_reporte_dest, database.BASE_DIR)
+                                
+                                fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+                                
+                                database.guardar_reporte(
+                                    folio=nuevo_folio,
+                                    fecha=fecha_hoy,
+                                    proveedor=prov_input.strip(),
+                                    certificado_info=cert_info_input.strip(),
+                                    ruta_certificado=rel_cert,
+                                    ruta_correo=rel_correo,
+                                    ruta_reporte=rel_reporte,
+                                    desviacion_ofertada_def=tol_proveedor,
+                                    total_rollos=total_rollos,
+                                    aceptados=aceptados,
+                                    rechazados=rechazados,
+                                    riesgo_promedio=prom_riesgo
+                                )
+                                st.success(f"✅ Reporte guardado exitosamente bajo el Folio: **{nuevo_folio}**")
+                                
+        except Exception as e:
+            st.error(f"❌ Error crítico en el procesamiento del lote técnico: {str(e)}")
+    else:
+        st.info("💡 Tablero listo. Por favor, cargue un archivo de Excel utilizando la plantilla estándar en la barra lateral para iniciar las simulaciones estadísticas.")
+
+elif opcion_menu == "🔍 Historial de Reportes":
+    import database
+    st.title("🔍 Historial de Consultas de Propuestas")
+    st.markdown("Busque y consulte expedientes históricos de propuestas de proveedores cargados en el sistema.")
+    
+    # 1. Filtros
+    with st.expander("🔍 Filtros de Búsqueda", expanded=True):
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            rango_fecha = st.date_input("Rango de Fechas:", value=(datetime.now() - pd.Timedelta(days=90), datetime.now()))
+        with col_f2:
+            proveedores_list = ["Todos"] + database.obtener_proveedores()
+            prov_filtro = st.selectbox("Filtrar por Proveedor:", proveedores_list)
             
-            # --- COMPONENTE DE ACCIÓN FINAL: BOTÓN DE DESCARGA PDF ---
-            st.subheader("📄 Entregables de Ingeniería de Calidad")
-            pdf_buffer = crear_pdf_formal(df_datos_cargados, tol_proveedor)
-            st.download_button(
-                label="📥 Descargar Reporte PDF de Control Corporativo",
-                data=pdf_buffer,
-                file_name=f"Reporte_Riesgo_Espesores_{datetime.now().strftime('%H%M')}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+    # Parsear rango de fechas
+    fecha_ini = None
+    fecha_fi = None
+    if isinstance(rango_fecha, tuple) and len(rango_fecha) == 2:
+        fecha_ini = rango_fecha[0].strftime("%Y-%m-%d")
+        fecha_fi = rango_fecha[1].strftime("%Y-%m-%d")
+    elif isinstance(rango_fecha, list) and len(rango_fecha) == 2:
+        fecha_ini = rango_fecha[0].strftime("%Y-%m-%d")
+        fecha_fi = rango_fecha[1].strftime("%Y-%m-%d")
+    elif isinstance(rango_fecha, datetime):
+        fecha_ini = rango_fecha.strftime("%Y-%m-%d")
+        fecha_fi = rango_fecha.strftime("%Y-%m-%d")
+        
+    # Obtener datos
+    records = database.obtener_reportes(fecha_inicio=fecha_ini, fecha_fin=fecha_fi, proveedor=prov_filtro)
+    
+    if not records:
+        st.info("No se encontraron registros en el historial con los filtros aplicados.")
+    else:
+        df_hist = pd.DataFrame(records)
+        # Mostrar tabla resumida
+        st.write("### Resumen de Expedientes Encontrados")
+        df_hist_view = df_hist[[
+            "folio", "fecha", "proveedor", "certificado_info", 
+            "total_rollos", "aceptados", "rechazados", "riesgo_promedio"
+        ]].rename(columns={
+            "folio": "Folio",
+            "fecha": "Fecha",
+            "proveedor": "Proveedor",
+            "certificado_info": "Certificado",
+            "total_rollos": "Rollos Totales",
+            "aceptados": "Aceptados",
+            "rechazados": "Rechazados",
+            "riesgo_promedio": "Riesgo Promedio"
+        })
+        st.dataframe(df_hist_view, use_container_width=True, hide_index=True)
+        
+        st.write("---")
+        st.write("### 📁 Detalle de Expediente")
+        folio_sel = st.selectbox("Seleccione un Folio para visualizar y descargar:", df_hist["folio"].tolist())
+        
+        if folio_sel:
+            rec_sel = df_hist[df_hist["folio"] == folio_sel].iloc[0]
             
-    except Exception as e:
-        st.error(f"❌ Error crítico en el procesamiento del lote técnico: {str(e)}")
-else:
-    st.info("💡 Tablero listo. Por favor, cargue un archivo de Excel utilizando la plantilla estándar en la barra lateral para iniciar las simulaciones estadísticas.")
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                st.markdown(f"#### Folio: **{rec_sel['folio']}**")
+                st.write(f"- **Fecha:** {rec_sel['fecha']}")
+                st.write(f"- **Proveedor:** {rec_sel['proveedor']}")
+                st.write(f"- **Certificado:** {rec_sel['certificado_info']}")
+                st.write(f"- **Total Rollos:** {rec_sel['total_rollos']}")
+                st.write(f"- **Aceptados:** {rec_sel['aceptados']} | **Rechazados:** {rec_sel['rechazados']}")
+                st.write(f"- **Riesgo Promedio:** {rec_sel['riesgo_promedio']:.2f}%")
+                
+                # Descargas
+                st.write("##### Descargar Documentos:")
+                
+                # Reporte PDF
+                rep_path = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
+                if os.path.exists(rep_path):
+                    with open(rep_path, "rb") as f_pdf:
+                        st.download_button(
+                            label="📄 Descargar Reporte Técnico (PDF)",
+                            data=f_pdf.read(),
+                            file_name=f"Reporte_Tecnico_{rec_sel['folio']}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                            key=f"btn_dl_rep_{rec_sel['folio']}"
+                        )
+                else:
+                    st.warning("⚠️ Archivo de reporte no encontrado.")
+                    
+                # Certificado PDF
+                cert_path = os.path.join(database.BASE_DIR, rec_sel["ruta_certificado"])
+                if os.path.exists(cert_path):
+                    cert_name = os.path.basename(cert_path)
+                    with open(cert_path, "rb") as f_pdf:
+                        st.download_button(
+                            label="📂 Descargar Certificado de Calidad (PDF)",
+                            data=f_pdf.read(),
+                            file_name=cert_name,
+                            mime="application/pdf",
+                            use_container_width=True,
+                            key=f"btn_dl_cert_{rec_sel['folio']}"
+                        )
+                else:
+                    st.warning("⚠️ Archivo de certificado no encontrado.")
+                    
+            with col_d2:
+                # Mostrar imagen del correo de compras
+                correo_path = os.path.join(database.BASE_DIR, rec_sel["ruta_correo"])
+                if os.path.exists(correo_path):
+                    st.write("##### Captura del Correo de Compras:")
+                    st.image(correo_path, use_container_width=True)
+                else:
+                    st.warning("⚠️ Captura del correo de compras no encontrada.")
+
