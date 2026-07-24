@@ -653,7 +653,15 @@ elif opcion_menu == "2. ⚙️ Carga de Propuesta Proveedor":
             df = pd.read_excel(archivo_cargado)
             st.session_state["df_raw_excel"] = df.copy()
             st.session_state["raw_excel_bytes"] = archivo_cargado.getvalue()
+            
+            # ── Vista previa inmediata del archivo cargado ──────────────────
+            with st.expander("🔎 Vista previa del archivo cargado (diagnóstico)", expanded=True):
+                st.write(f"**Columnas detectadas:** {df.columns.tolist()}")
+                st.write(f"**Total de filas:** {len(df)}")
+                st.dataframe(df, use_container_width=True)
+            
             res = []
+            filas_ignoradas = []
             
             # Buscar si existe columna de Tolerancia en el Excel
             col_tol = None
@@ -662,30 +670,63 @@ elif opcion_menu == "2. ⚙️ Carga de Propuesta Proveedor":
                     col_tol = col
                     break
             
-            for _, f in df.iterrows():
-                mat = str(f["Material"]).strip()
-                cal = int(f["Calibre"])
-                if mat not in ESTANDAR or cal not in ESTANDAR[mat]:
-                    continue
-                
-                med = float(f["Espesor_Medido"])
-                uni = str(f["Unidad"]).strip().lower()
-                esp_in = round(med * 0.0393701, 4) if ("mm" in uni or "mili" in uni) else med
-                
-                # Tolerancia del rollo
-                tol_r = float(f[col_tol]) if (col_tol and pd.notna(f[col_tol])) else tol_proveedor
-                
-                res.append({
-                    "Rollo": str(f["Numero_Rollo"]),
-                    "Material": mat,
-                    "Calibre": f"CAL {cal}",
-                    "Espesor Original": f"{med} {'mm' if 'mm' in uni else 'in'}",
-                    "Espesor Real (in)": esp_in,
-                    "Nominal Estándar": ESTANDAR[mat][cal],
-                    "Desviación Real (in)": round(esp_in - ESTANDAR[mat][cal], 4),
-                    "Tolerancia_Rollo": tol_r
-                })
-                
+            # Mapa normalizado del ESTANDAR para comparación flexible (case-insensitive)
+            ESTANDAR_NORM = {k.strip().lower(): v for k, v in ESTANDAR.items()}
+            
+            for idx, f in df.iterrows():
+                try:
+                    mat_raw = str(f["Material"]).strip()
+                    mat_key = mat_raw.lower()
+                    
+                    # Intentar parsear calibre como entero (tolerar float como 12.0)
+                    try:
+                        cal = int(float(f["Calibre"]))
+                    except (ValueError, TypeError):
+                        filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Calibre no numérico: '{f.get('Calibre', '')}'", "Material": mat_raw})
+                        continue
+                    
+                    # Buscar material con comparación insensible a mayúsculas
+                    if mat_key not in ESTANDAR_NORM:
+                        filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Material '{mat_raw}' no está en el catálogo. Valores válidos: {list(ESTANDAR.keys())}", "Material": mat_raw})
+                        continue
+                    
+                    if cal not in ESTANDAR_NORM[mat_key]:
+                        filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Calibre {cal} no existe para '{mat_raw}'. Calibres válidos: {list(ESTANDAR_NORM[mat_key].keys())}", "Material": mat_raw})
+                        continue
+                    
+                    # Usar el nombre canonical del material (con capitalización correcta)
+                    mat_canonical = next(k for k in ESTANDAR if k.strip().lower() == mat_key)
+                    
+                    med = float(f["Espesor_Medido"])
+                    uni = str(f["Unidad"]).strip().lower()
+                    esp_in = round(med * 0.0393701, 4) if ("mm" in uni or "mili" in uni) else med
+                    
+                    # Tolerancia del rollo
+                    tol_r = float(f[col_tol]) if (col_tol and pd.notna(f[col_tol])) else tol_proveedor
+                    
+                    res.append({
+                        "Rollo": str(f["Numero_Rollo"]),
+                        "Material": mat_canonical,
+                        "Calibre": f"CAL {cal}",
+                        "Espesor Original": f"{med} {'mm' if 'mm' in uni else 'in'}",
+                        "Espesor Real (in)": esp_in,
+                        "Nominal Estándar": ESTANDAR[mat_canonical][cal],
+                        "Desviación Real (in)": round(esp_in - ESTANDAR[mat_canonical][cal], 4),
+                        "Tolerancia_Rollo": tol_r
+                    })
+                    
+                except KeyError as ke:
+                    filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Columna requerida faltante: {ke}", "Material": f.get("Material", "?")})
+                except Exception as ex_fila:
+                    filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": str(ex_fila), "Material": f.get("Material", "?")})
+            
+            # Mostrar advertencias de filas ignoradas
+            if filas_ignoradas:
+                with st.expander(f"⚠️ {len(filas_ignoradas)} fila(s) ignoradas — haz clic para ver el motivo", expanded=True):
+                    st.warning("Las siguientes filas no pudieron procesarse:")
+                    st.dataframe(pd.DataFrame(filas_ignoradas), use_container_width=True, hide_index=True)
+                    st.info(f"💡 **Materiales válidos en el catálogo:** {list(ESTANDAR.keys())} | **Calibres válidos:** 10, 12, 14, 16")
+                    
             df_datos_cargados = pd.DataFrame(res)
             
             if not df_datos_cargados.empty:
