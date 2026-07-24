@@ -335,8 +335,8 @@ def obtener_emails_config():
     import json
     config_path = os.path.join(BASE_DIR, "config_emails.json")
     default_config = {
-        "dest_to": "josue.mesta@sigrama.com.mx; sarellano@sigrama.com.mx",
-        "dest_cc": "abastecimientos@sigrama.com.mx; almacen@sigrama.com.mx; bryan.mancinas@sigrama.com.mx"
+        "dest_to": "Victor Montoya Martinez <victor.montoya@sigrama.com.mx>; Luis Domingo Garcia Gracia <luis.garcia@sigrama.com.mx>; Josue Mesta <josue.mesta@sigrama.com.mx>; Alejandra Arellano Machado <sarellano@sigrama.com.mx>; Mydory Noehmi Gonzalez Leon <abastecimientos@sigrama.com.mx>; Luis Alberto Sianez Moreno <almacen@sigrama.com.mx>",
+        "dest_cc": "Calidad <calidad@sigrama.com.mx>; Jesus Alberto Morales Lopez <jesus.morales@sigrama.com.mx>; Edgar Sosa Suarez <edgar.sosa@sigrama.com.mx>; Lorena Hernandez Cuellar <lhernandez@sigrama.com.mx>; Armando Woo Vazquez <armando.vazquez@sigrama.com.mx>; Bryan Alejandro Flores Mancinas <bryan.mancinas@sigrama.com.mx>; Cruz Eduardo Carreon Rios <cruz.carreon@sigrama.com.mx>; Luis Alfredo Quintana Palma <luis.quintana@sigrama.com.mx>"
     }
     if not os.path.exists(config_path):
         try:
@@ -349,6 +349,13 @@ def obtener_emails_config():
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+            
+            # Migración automática si detectamos el correo por defecto anterior
+            if "josue.mesta@sigrama.com.mx" in data.get("dest_to", ""):
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(default_config, f, indent=4)
+                return default_config
+                
             # Asegurar que las llaves estén presentes
             if "dest_to" not in data:
                 data["dest_to"] = default_config["dest_to"]
