@@ -25,11 +25,81 @@ import matplotlib
 matplotlib.use('Agg') # Renderizado seguro en backend para servidores sin entorno gráfico
 import matplotlib.pyplot as plt
 
-# 3. MATRIZ TÉCNICA PLANTA (Límites rígidos de diseño nominal)
+# 3. MATRIZ TÉCNICA PLANTA OFICIAL (Documento Oficial de Materia Prima)
+# ESTANDAR mapea [Material][Calibre] -> Nominal / MEAN (en pulgadas)
 ESTANDAR = {
-    "Galvanizado": {10: 0.138, 12: 0.108, 14: 0.079, 16: 0.064},
-    "Decapado": {10: 0.135, 12: 0.105, 14: 0.075, 16: 0.060}
+    "Decapado": { # STEEL - PLAIN
+        9: 0.150, 10: 0.135, 11: 0.120, 12: 0.105, 13: 0.090, 
+        14: 0.075, 15: 0.067, 16: 0.060, 17: 0.054, 18: 0.048
+    },
+    "Galvanizado": { # STEEL - GALVANIZED / GALVANNEALED
+        9: 0.153, 10: 0.138, 11: 0.123, 12: 0.108, 13: 0.093, 
+        14: 0.078, 15: 0.070, 16: 0.063, 17: 0.057, 18: 0.051
+    }
 }
+
+# ESPECIFICACIONES DETALLADAS OFICIALES (MIN, MEAN, MAX, LB/IN²)
+ESTANDAR_DETALLADO = {
+    "Decapado": { # STEEL - PLAIN
+        9:  {"min": 0.142, "mean": 0.150, "max": 0.158, "lb_in2": 0.0435},
+        10: {"min": 0.127, "mean": 0.135, "max": 0.143, "lb_in2": 0.0391},
+        11: {"min": 0.111, "mean": 0.120, "max": 0.128, "lb_in2": 0.0348},
+        12: {"min": 0.097, "mean": 0.105, "max": 0.113, "lb_in2": 0.0305},
+        13: {"min": 0.083, "mean": 0.090, "max": 0.097, "lb_in2": 0.0261},
+        14: {"min": 0.068, "mean": 0.075, "max": 0.082, "lb_in2": 0.0217},
+        15: {"min": 0.061, "mean": 0.067, "max": 0.073, "lb_in2": 0.0194},
+        16: {"min": 0.054, "mean": 0.060, "max": 0.066, "lb_in2": 0.0174},
+        17: {"min": 0.048, "mean": 0.054, "max": 0.060, "lb_in2": 0.0156},
+        18: {"min": 0.043, "mean": 0.048, "max": 0.053, "lb_in2": 0.0139},
+    },
+    "Galvanizado": { # STEEL - GALVANIZED / GALVANNEALED
+        9:  {"min": 0.144, "mean": 0.153, "max": 0.162, "lb_in2": 0.0444},
+        10: {"min": 0.129, "mean": 0.138, "max": 0.147, "lb_in2": 0.0400},
+        11: {"min": 0.114, "mean": 0.123, "max": 0.132, "lb_in2": 0.0357},
+        12: {"min": 0.099, "mean": 0.108, "max": 0.117, "lb_in2": 0.0313},
+        13: {"min": 0.085, "mean": 0.093, "max": 0.101, "lb_in2": 0.0270},
+        14: {"min": 0.071, "mean": 0.078, "max": 0.087, "lb_in2": 0.0226},
+        15: {"min": 0.065, "mean": 0.070, "max": 0.077, "lb_in2": 0.0203},
+        16: {"min": 0.058, "mean": 0.063, "max": 0.070, "lb_in2": 0.0183},
+        17: {"min": 0.053, "mean": 0.057, "max": 0.063, "lb_in2": 0.0165},
+        18: {"min": 0.047, "mean": 0.051, "max": 0.057, "lb_in2": 0.0148},
+    }
+}
+
+def resolver_material_canonical(mat_raw):
+    """Mapea cualquier variación de nombre de material al nombre canonical en la base estándar."""
+    if not mat_raw or pd.isna(mat_raw):
+        return None
+    s = str(mat_raw).strip().lower()
+    if any(kw in s for kw in ["galv", "galvanizado", "galvannealed", "galvanneal"]):
+        return "Galvanizado"
+    if any(kw in s for kw in ["plain", "decapado", "negro", "cold", "hot", "acero"]):
+        return "Decapado"
+    for k in ESTANDAR:
+        if k.lower() in s or s in k.lower():
+            return k
+    return None
+
+def obtener_dataframe_estandar_oficial():
+    """Genera la tabla oficial de estándares de materia prima exactamente como el documento físico."""
+    rows = []
+    gauges = sorted(list(ESTANDAR_DETALLADO["Decapado"].keys()))
+    for g in gauges:
+        p = ESTANDAR_DETALLADO["Decapado"][g]
+        g_val = ESTANDAR_DETALLADO["Galvanizado"][g]
+        rows.append({
+            "COMM. GAUGE": g,
+            "PLAIN - MIN (\")": f"{p['min']:.3f}",
+            "PLAIN - MEAN (\")": f"{p['mean']:.3f}",
+            "PLAIN - MAX (\")": f"{p['max']:.3f}",
+            "PLAIN - LB/IN²": f"{p['lb_in2']:.4f}",
+            "GALVANIZED - MIN (\")": f"{g_val['min']:.3f}",
+            "GALVANIZED - MEAN (\")": f"{g_val['mean']:.3f}",
+            "GALVANIZED - MAX (\")": f"{g_val['max']:.3f}",
+            "GALVANIZED - LB/IN²": f"{g_val['lb_in2']:.4f}"
+        })
+    return pd.DataFrame(rows)
+
 TOLERANCIA_INTERNA = 0.008
 
 # Despliegue de banner corporativo principal
@@ -647,6 +717,12 @@ elif opcion_menu == "2. ⚙️ Carga de Propuesta Proveedor":
     st.title("⚙️ Carga de Propuesta de Proveedor")
     st.markdown(f"**Estándar Fijo Planta (Norma Interna de Diseño):** `±{TOLERANCIA_INTERNA}\"`")
 
+    with st.expander("📜 Ver Documento Oficial de Estándares de Materia Prima (COMM. GAUGE 9 al 18)", expanded=False):
+        st.write("##### Especificaciones Oficiales de Tolerancias y Densidades Técnicas (Planta)")
+        df_std_oficial = obtener_dataframe_estandar_oficial()
+        st.dataframe(df_std_oficial, use_container_width=True, hide_index=True)
+        st.caption("Valores nominales MEAN, rangos MIN/MAX y peso unitario LB/IN² integrados directamente de la norma oficial.")
+
     archivo_cargado = st.file_uploader("📥 Cargar datos industriales para simulación (Excel)", type=["xlsx"])
     if archivo_cargado is not None:
         try:
@@ -670,13 +746,10 @@ elif opcion_menu == "2. ⚙️ Carga de Propuesta Proveedor":
                     col_tol = col
                     break
             
-            # Mapa normalizado del ESTANDAR para comparación flexible (case-insensitive)
-            ESTANDAR_NORM = {k.strip().lower(): v for k, v in ESTANDAR.items()}
-            
             for idx, f in df.iterrows():
                 try:
                     mat_raw = str(f["Material"]).strip()
-                    mat_key = mat_raw.lower()
+                    mat_canonical = resolver_material_canonical(mat_raw)
                     
                     # Intentar parsear calibre como entero (tolerar float como 12.0)
                     try:
@@ -685,17 +758,14 @@ elif opcion_menu == "2. ⚙️ Carga de Propuesta Proveedor":
                         filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Calibre no numérico: '{f.get('Calibre', '')}'", "Material": mat_raw})
                         continue
                     
-                    # Buscar material con comparación insensible a mayúsculas
-                    if mat_key not in ESTANDAR_NORM:
-                        filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Material '{mat_raw}' no está en el catálogo. Valores válidos: {list(ESTANDAR.keys())}", "Material": mat_raw})
+                    # Buscar material con resolver_material_canonical
+                    if not mat_canonical or mat_canonical not in ESTANDAR:
+                        filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Material '{mat_raw}' no reconocido. Materiales soportados: Decapado/Plain, Galvanizado/Galvannealed", "Material": mat_raw})
                         continue
                     
-                    if cal not in ESTANDAR_NORM[mat_key]:
-                        filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Calibre {cal} no existe para '{mat_raw}'. Calibres válidos: {list(ESTANDAR_NORM[mat_key].keys())}", "Material": mat_raw})
+                    if cal not in ESTANDAR[mat_canonical]:
+                        filas_ignoradas.append({"Fila": idx + 2, "Rollo": f.get("Numero_Rollo", "?"), "Motivo": f"Calibre {cal} no existe para '{mat_canonical}'. Calibres válidos: {sorted(list(ESTANDAR[mat_canonical].keys()))}", "Material": mat_raw})
                         continue
-                    
-                    # Usar el nombre canonical del material (con capitalización correcta)
-                    mat_canonical = next(k for k in ESTANDAR if k.strip().lower() == mat_key)
                     
                     med = float(f["Espesor_Medido"])
                     uni = str(f["Unidad"]).strip().lower()
@@ -725,7 +795,7 @@ elif opcion_menu == "2. ⚙️ Carga de Propuesta Proveedor":
                 with st.expander(f"⚠️ {len(filas_ignoradas)} fila(s) ignoradas — haz clic para ver el motivo", expanded=True):
                     st.warning("Las siguientes filas no pudieron procesarse:")
                     st.dataframe(pd.DataFrame(filas_ignoradas), use_container_width=True, hide_index=True)
-                    st.info(f"💡 **Materiales válidos en el catálogo:** {list(ESTANDAR.keys())} | **Calibres válidos:** 10, 12, 14, 16")
+                    st.info(f"💡 **Materiales válidos en el catálogo:** {list(ESTANDAR.keys())} (o Decapado / Plain, Galvanizado / Galvannealed) | **Calibres válidos:** 9 al 18")
                     
             df_datos_cargados = pd.DataFrame(res)
             
@@ -1164,9 +1234,13 @@ elif opcion_menu == "3. 🔍 Consulta e Historial":
                                         break
                                 
                                 for _, f in df_excel.iterrows():
-                                    mat = str(f["Material"]).strip()
-                                    cal = int(f["Calibre"])
-                                    if mat not in ESTANDAR or cal not in ESTANDAR[mat]:
+                                    mat_raw = str(f["Material"]).strip()
+                                    mat = resolver_material_canonical(mat_raw)
+                                    try:
+                                        cal = int(float(f["Calibre"]))
+                                    except (ValueError, TypeError):
+                                        continue
+                                    if not mat or mat not in ESTANDAR or cal not in ESTANDAR[mat]:
                                         continue
                                     med = float(f["Espesor_Medido"])
                                     uni = str(f["Unidad"]).strip().lower()
@@ -1536,6 +1610,12 @@ elif opcion_menu == "5. 📜 Sistema de Gestión de Calidad (SGC)":
     * **Director de Maquinados (Aprobador Técnico):** Firma y valida el dictamen final.
     * **Administrador del Sistema:** Administra la base de datos y roles de acceso.
     """)
+
+    st.write("---")
+    st.markdown("### 📋 Norma Técnica Oficial de Materia Prima (COMM. GAUGE 9 al 18)")
+    st.markdown("Tabla estándar de referencia oficial para espesores nominales (MEAN), límites de tolerancia (MIN / MAX) y densidad de masa (LB/IN²).")
+    df_sgc_std = obtener_dataframe_estandar_oficial()
+    st.dataframe(df_sgc_std, use_container_width=True, hide_index=True)
 
 elif opcion_menu == "6. 🌐 Industria 4.0 y Manufactura":
     st.title("🌐 Manufactura Inteligente & Industria 4.0")
