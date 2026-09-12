@@ -580,18 +580,40 @@ else:
 
 st.sidebar.write("---")
 
+# Soporte SSO desde Concentradora SIGRAMA
+try:
+    qp = dict(st.query_params) if hasattr(st, "query_params") else {}
+    sso_token = qp.get("sso_token")
+    if isinstance(sso_token, list): sso_token = sso_token[0] if sso_token else ""
+    sso_user = qp.get("sso_user")
+    if isinstance(sso_user, list): sso_user = sso_user[0] if sso_user else ""
+    sso_role = qp.get("sso_role", "Usuario")
+    if isinstance(sso_role, list): sso_role = sso_role[0] if sso_role else ""
+    
+    if sso_token == "SIGRAMA_AUTH_TOKEN" and sso_user:
+        st.session_state["logged_in"] = True
+        st.session_state["username"] = sso_user
+        if sso_role in ["Admin", "Administrador"] or sso_user.lower() in ["jmorales", "admin"]:
+            st.session_state["user_role"] = "Administrador"
+        else:
+            st.session_state["user_role"] = "Operador"
+except Exception:
+    pass
+
 # Control de Sesión / Login en Barra Lateral
 if not st.session_state["logged_in"]:
     st.sidebar.subheader("🔒 Acceso al Sistema")
     login_user = st.sidebar.text_input("Usuario:", key="login_user_input")
     login_pass = st.sidebar.text_input("Contraseña:", type="password", key="login_pass_input")
     if st.sidebar.button("Iniciar Sesión", use_container_width=True):
-        if login_user == "admin" and login_pass == "admin_sigrama":
+        u_clean = login_user.strip().lower()
+        p_clean = login_pass.strip()
+        if (u_clean in ["admin", "jmorales"] and p_clean in ["admin_sigrama", "SigramaAdmin2026"]):
             st.session_state["logged_in"] = True
             st.session_state["user_role"] = "Administrador"
-            st.session_state["username"] = "admin"
+            st.session_state["username"] = "jmorales" if u_clean == "jmorales" else "admin"
             st.rerun()
-        elif login_user == "operador" and login_pass == "operador_sigrama":
+        elif u_clean == "operador" and p_clean == "operador_sigrama":
             st.session_state["logged_in"] = True
             st.session_state["user_role"] = "Operador"
             st.session_state["username"] = "operador"
@@ -600,7 +622,7 @@ if not st.session_state["logged_in"]:
             st.sidebar.error("❌ Credenciales incorrectas.")
             
     st.warning("🔒 **Control de Acceso:** Por favor introduzca su usuario y contraseña en la barra lateral para ingresar al sistema.")
-    st.info("💡 **Credenciales por Defecto:**\n* **Administrador:** usuario `admin` | clave `admin_sigrama`\n* **Operador:** usuario `operador` | clave `operador_sigrama`")
+    st.info("💡 **Credenciales por Defecto:**\n* **Administrador:** usuario `jmorales` / `admin` | clave `SigramaAdmin2026` / `admin_sigrama`\n* **Operador:** usuario `operador` | clave `operador_sigrama`")
     st.stop()
 else:
     st.sidebar.markdown(f"""
@@ -1470,7 +1492,13 @@ elif opcion_menu == "3. 🔍 Consulta e Historial":
                                 key=f"btn_dl_eml_{rec_sel['folio']}"
                             )
                     
-                    if "SMTP_SERVER" in st.secrets:
+                    has_smtp = False
+                    try:
+                        has_smtp = hasattr(st, "secrets") and "SMTP_SERVER" in st.secrets
+                    except Exception:
+                        has_smtp = False
+
+                    if has_smtp:
                         if st.button("✉️ Enviar Reporte por Correo Directo", key=f"btn_send_smtp_{rec_sel['folio']}", use_container_width=True):
                             with st.spinner("Enviando correo al destinatario..."):
                                 rep_path_abs = os.path.join(database.BASE_DIR, rec_sel["ruta_reporte"])
