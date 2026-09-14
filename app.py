@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -9,11 +10,29 @@ import importlib
 import database
 importlib.reload(database)
 import os
+from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 1. CONFIGURACIÓN ÚNICA DE LA PÁGINA (Debe ser la primera instrucción de Streamlit)
 st.set_page_config(page_title="Suite de Riesgo y Control de Espesores", layout="wide")
+
+components.html("""
+<script>
+(function() {
+  function hideFooter() {
+    document.querySelectorAll('footer').forEach(function(el) { el.style.display='none'; });
+    ['stFooter','stDecoration','stViewerBadge'].forEach(function(id) {
+      document.querySelectorAll('[data-testid="'+id+'"]').forEach(function(el) { el.style.display='none'; });
+    });
+    document.querySelectorAll('div[class*="viewerBadge"],div[class*="ProfileButton"],a[href*="streamlit.io"]').forEach(function(el) { el.style.display='none'; });
+  }
+  var observer = new MutationObserver(hideFooter);
+  observer.observe(document.documentElement, {childList:true, subtree:true});
+  hideFooter();
+})();
+</script>
+""", height=0)
 
 # 2. CONFIGURACIÓN GRÁFICA VECTORIAL Y REPORTES NATIVOS
 from reportlab.lib.pagesizes import letter
@@ -103,6 +122,11 @@ def obtener_dataframe_estandar_oficial():
 TOLERANCIA_INTERNA = 0.008
 
 # Despliegue de banner corporativo principal
+# === BANNER SIGRAMA ===
+_banner_path = Path(__file__).resolve().parent / "banner_sigrama.png"
+if _banner_path.exists():
+    st.image(str(_banner_path), use_container_width=True)
+
 st.image(os.path.join(BASE_DIR, "BANNER CONTROL DE ESPESORES APP.png"), use_container_width=True)
 def colorear_matriz_resumen(v):
     """Aplica formato semafórico condicional estricto: Verde para aceptados y Rojo para riesgosos/rechazados."""
