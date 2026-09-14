@@ -122,10 +122,6 @@ def obtener_dataframe_estandar_oficial():
 TOLERANCIA_INTERNA = 0.008
 
 # Despliegue de banner corporativo principal
-# === BANNER SIGRAMA ===
-_banner_path = Path(__file__).resolve().parent / "banner_sigrama.png"
-if _banner_path.exists():
-    st.image(str(_banner_path), use_container_width=True)
 
 st.image(os.path.join(BASE_DIR, "BANNER CONTROL DE ESPESORES APP.png"), use_container_width=True)
 def colorear_matriz_resumen(v):
