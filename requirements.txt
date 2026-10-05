@@ -8,3 +8,4 @@ openpyxl
 matplotlib
 streamlit-paste-button
 PyMuPDF
+google-cloud-storage

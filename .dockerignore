@@ -7,3 +7,4 @@ venv/
 .git/
 .gitignore
 expedientes/
+espesores_historial.db

@@ -8,6 +8,85 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "espesores_historial.db")
 EXPEDIENTES_DIR = os.path.join(BASE_DIR, "expedientes")
 
+# ---------------------------------------------------------------------------
+# PERSISTENCIA EN GOOGLE CLOUD STORAGE (Cloud Run tiene disco efimero)
+# Si la variable de entorno GCS_BUCKET esta definida, el bucket es la fuente de
+# verdad: se descarga al arrancar y se sincroniza despues de cada escritura.
+# Sin GCS_BUCKET (Streamlit Cloud / local) todo funciona como antes (GitHub).
+# ---------------------------------------------------------------------------
+GCS_BUCKET = os.environ.get("GCS_BUCKET", "").strip()
+_GCS_READY = False
+_GCS_FILES = {
+    "espesores_historial.db": DB_PATH,
+    "config_emails.json": os.path.join(BASE_DIR, "config_emails.json"),
+}
+
+def _gcs_bucket():
+    from google.cloud import storage
+    return storage.Client().bucket(GCS_BUCKET)
+
+def _gcs_local_path(blob_name):
+    if blob_name in _GCS_FILES:
+        return _GCS_FILES[blob_name]
+    if blob_name.startswith("expedientes/"):
+        return os.path.join(BASE_DIR, *blob_name.split("/"))
+    return None
+
+def sync_from_gcs():
+    """Descarga la base de datos y los expedientes desde el bucket al arrancar."""
+    global _GCS_READY
+    if not GCS_BUCKET:
+        return False
+    try:
+        bucket = _gcs_bucket()
+        n = 0
+        for blob in bucket.list_blobs():
+            if blob.name.endswith("/"):
+                continue
+            local = _gcs_local_path(blob.name)
+            if not local:
+                continue
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+            blob.download_to_filename(local)
+            n += 1
+        _GCS_READY = True
+        print(f"[GCS] Sincronizados {n} archivos desde gs://{GCS_BUCKET}")
+        return True
+    except Exception as e:
+        # Si no se pudo leer el bucket NO se habilita la escritura (evita borrar datos)
+        print(f"[GCS] ERROR al sincronizar desde el bucket: {e}")
+        return False
+
+def push_to_gcs():
+    """Sube DB, config y expedientes al bucket y refleja las eliminaciones locales."""
+    if not (GCS_BUCKET and _GCS_READY):
+        return False
+    try:
+        bucket = _gcs_bucket()
+        remote = {b.name: b for b in bucket.list_blobs()}
+        local_names = set()
+        for name, local in _GCS_FILES.items():
+            if os.path.exists(local):
+                bucket.blob(name).upload_from_filename(local)
+        for root, _dirs, files in os.walk(EXPEDIENTES_DIR):
+            for f in files:
+                full = os.path.join(root, f)
+                name = os.path.relpath(full, BASE_DIR).replace(os.sep, "/")
+                local_names.add(name)
+                rb = remote.get(name)
+                if rb is None or rb.size != os.path.getsize(full):
+                    bucket.blob(name).upload_from_filename(full)
+        for name, rb in remote.items():
+            if name.startswith("expedientes/") and name not in local_names:
+                rb.delete()
+        return True
+    except Exception as e:
+        print(f"[GCS] ERROR al subir al bucket: {e}")
+        return False
+
+if GCS_BUCKET:
+    sync_from_gcs()
+
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -213,6 +292,8 @@ def limpiar_base_datos():
 
 def push_to_github():
     """Sincroniza la base de datos y los archivos de expedientes con el repositorio de GitHub."""
+    if GCS_BUCKET:
+        return push_to_gcs()
     import subprocess
     import streamlit as st
     try:
