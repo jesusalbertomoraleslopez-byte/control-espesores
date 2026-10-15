@@ -21,9 +21,29 @@ _GCS_FILES = {
     "config_emails.json": os.path.join(BASE_DIR, "config_emails.json"),
 }
 
+import time
+import threading
+
+_STORAGE_CLIENT = None
+_BUCKET_OBJ = None
+_SYNC_LOCK = threading.Lock()
+_LAST_SYNC_TS = 0.0
+SYNC_TTL = 300.0  # 5 minutos
+
+def get_storage_client():
+    global _STORAGE_CLIENT
+    if _STORAGE_CLIENT is None:
+        from google.cloud import storage
+        _STORAGE_CLIENT = storage.Client()
+    return _STORAGE_CLIENT
+
 def _gcs_bucket():
-    from google.cloud import storage
-    return storage.Client().bucket(GCS_BUCKET)
+    global _BUCKET_OBJ
+    if not GCS_BUCKET:
+        return None
+    if _BUCKET_OBJ is None or _BUCKET_OBJ.name != GCS_BUCKET:
+        _BUCKET_OBJ = get_storage_client().bucket(GCS_BUCKET)
+    return _BUCKET_OBJ
 
 def _gcs_local_path(blob_name):
     if blob_name in _GCS_FILES:
@@ -32,30 +52,44 @@ def _gcs_local_path(blob_name):
         return os.path.join(BASE_DIR, *blob_name.split("/"))
     return None
 
-def sync_from_gcs():
-    """Descarga la base de datos y los expedientes desde el bucket al arrancar."""
-    global _GCS_READY
+def sync_from_gcs(force: bool = False):
+    """Descarga la base de datos y los expedientes desde el bucket al arrancar o si expira el TTL."""
+    global _GCS_READY, _LAST_SYNC_TS
     if not GCS_BUCKET:
         return False
-    try:
-        bucket = _gcs_bucket()
-        n = 0
-        for blob in bucket.list_blobs():
-            if blob.name.endswith("/"):
-                continue
-            local = _gcs_local_path(blob.name)
-            if not local:
-                continue
-            os.makedirs(os.path.dirname(local), exist_ok=True)
-            blob.download_to_filename(local)
-            n += 1
-        _GCS_READY = True
-        print(f"[GCS] Sincronizados {n} archivos desde gs://{GCS_BUCKET}")
+
+    now = time.time()
+    if not force and (now - _LAST_SYNC_TS) < SYNC_TTL and _GCS_READY:
         return True
-    except Exception as e:
-        # Si no se pudo leer el bucket NO se habilita la escritura (evita borrar datos)
-        print(f"[GCS] ERROR al sincronizar desde el bucket: {e}")
-        return False
+
+    with _SYNC_LOCK:
+        now = time.time()
+        if not force and (now - _LAST_SYNC_TS) < SYNC_TTL and _GCS_READY:
+            return True
+
+        try:
+            bucket = _gcs_bucket()
+            if not bucket:
+                return False
+            n = 0
+            for blob in bucket.list_blobs():
+                if blob.name.endswith("/"):
+                    continue
+                local = _gcs_local_path(blob.name)
+                if not local:
+                    continue
+                os.makedirs(os.path.dirname(local), exist_ok=True)
+                if not os.path.exists(local) or os.path.getsize(local) != blob.size:
+                    blob.download_to_filename(local)
+                    n += 1
+            _GCS_READY = True
+            _LAST_SYNC_TS = time.time()
+            print(f"[GCS] Sincronizados {n} archivos desde gs://{GCS_BUCKET}")
+            return True
+        except Exception as e:
+            # Si no se pudo leer el bucket NO se habilita la escritura (evita borrar datos)
+            print(f"[GCS] ERROR al sincronizar desde el bucket: {e}")
+            return False
 
 def push_to_gcs():
     """Sube DB, config y expedientes al bucket y refleja las eliminaciones locales."""
