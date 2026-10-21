@@ -496,18 +496,68 @@ st.markdown("""
         font-family: 'Questrial', sans-serif !important;
     }
     
-    /* Botones de navegación en barra lateral más compactos */
+    /* Menú Lateral Estilo Google Workspace (Píldoras Material Design 3) */
+    [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child {
+        display: none !important;
+    }
     [data-testid="stSidebar"] div[role="radiogroup"] {
-        gap: 6px !important;
+        background-color: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        gap: 3px !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
-    [data-testid="stSidebar"] div[role="radiogroup"] label {
+    [data-testid="stSidebar"] div[role="radiogroup"] > label {
+        background-color: transparent !important;
+        border: 1px solid transparent !important;
+        color: #CBD5E1 !important;
+        padding: 9px 18px !important;
+        border-radius: 24px !important;
+        transition: all 0.18s ease-in-out !important;
+        margin: 1px 0 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] label p,
+    [data-testid="stSidebar"] div[role="radiogroup"] label span {
+        font-size: 15px !important;
+        font-family: 'Questrial', sans-serif !important;
+        font-weight: 500 !important;
+        color: #CBD5E1 !important;
+        line-height: 1.35 !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover,
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover p,
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover span {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        border-color: transparent !important;
         color: #FFFFFF !important;
-        font-size: 13.5px !important;
-        padding-top: 2px !important;
-        padding-bottom: 2px !important;
+        border-radius: 24px !important;
     }
-    [data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-        color: #EC2024 !important;
+    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"],
+    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] p,
+    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] span,
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked),
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) p,
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) span {
+        background-color: rgba(236, 32, 36, 0.22) !important;
+        border: 1px solid rgba(236, 32, 36, 0.55) !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        border-radius: 24px !important;
+    }
+
+    /* Botón Google Workspace 'Redactar / Nuevo' (FAB Pill) */
+    div.stButton > button[key="btn_google_fab_espesores"] {
+        border-radius: 20px !important;
+        padding: 10px 20px !important;
+        font-size: 14.5px !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 14px rgba(236, 32, 36, 0.35) !important;
+        border: 1px solid rgba(236, 32, 36, 0.8) !important;
+        margin-bottom: 8px !important;
     }
     [data-testid="stSidebar"] hr {
         margin-top: 8px !important;
@@ -708,20 +758,43 @@ else:
         st.session_state["username"] = None
         st.rerun()
 
-st.sidebar.write("---")
-opcion_menu = st.sidebar.radio(
-    "Módulos del Sistema:", 
-    [
-        "1. 📊 Dashboard de Control", 
-        "2. ⚙️ Carga de Propuesta Proveedor", 
-        "3. 🔍 Consulta e Historial", 
-        "4. 🏢 Catálogo de Proveedores", 
-        "5. 📜 Sistema de Gestión de Calidad (SGC)",
-        "6. 🌐 Industria 4.0 y Manufactura",
-        "7. 📘 Manual de Operación",
-        "8. 🔧 Mantenimiento del Sistema"
-    ]
-)
+# --- NAVEGACIÓN ESTILO GOOGLE WORKSPACE ---
+if st.sidebar.button("➕ Cargar Propuesta", key="btn_google_fab_espesores", use_container_width=True, type="primary"):
+    st.session_state["esp_google_nav"] = "⚙️ Propuestas"
+    st.rerun()
+
+st.sidebar.markdown("<p style='font-family: \"Montserrat\", sans-serif; font-size: 11px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; margin-bottom: 6px;'>Menú Principal:</p>", unsafe_allow_html=True)
+
+ESPESORES_MAP = {
+    "📊 Resumen": "1. 📊 Dashboard de Control",
+    "⚙️ Propuestas": "2. ⚙️ Carga de Propuesta Proveedor",
+    "🔍 Historial": "3. 🔍 Consulta e Historial",
+    "🏢 Proveedores": "4. 🏢 Catálogo de Proveedores",
+    "📜 SGC": "5. 📜 Sistema de Gestión de Calidad (SGC)",
+    "🌐 Industria": "6. 🌐 Industria 4.0 y Manufactura",
+    "📘 Manual": "7. 📘 Manual de Operación",
+    "🔧 Mantenimiento": "8. 🔧 Mantenimiento del Sistema"
+}
+
+google_esp_items = [
+    "📊 Resumen",
+    "⚙️ Propuestas",
+    "🔍 Historial",
+    "🏢 Proveedores",
+    "📜 SGC",
+    "🌐 Industria",
+    "📘 Manual",
+    "🔧 Mantenimiento"
+]
+
+curr_esp = st.session_state.get("esp_google_nav", "📊 Resumen")
+if curr_esp not in google_esp_items:
+    curr_esp = google_esp_items[0]
+idx_esp = google_esp_items.index(curr_esp)
+
+sel_esp = st.sidebar.radio("Navegación:", google_esp_items, index=idx_esp, key="radio_esp_google", label_visibility="collapsed")
+st.session_state["esp_google_nav"] = sel_esp
+opcion_menu = ESPESORES_MAP.get(sel_esp, "1. 📊 Dashboard de Control")
 
 tol_proveedor = 0.006
 
